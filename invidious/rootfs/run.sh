@@ -10,7 +10,7 @@ source /usr/lib/bashio/bashio.sh
 PGDATA="/data/postgres"
 INVIDIOUS_BIN="/opt/invidious/invidious"
 CONFIG_DIR="/data/invidious"
-CONFIG_FILE="${CONFIG_DIR}/config.yml"
+CONFIG_FILE="/opt/invidious/config/config.yml"   # default path Invidious looks for
 HMAC_KEY_FILE="${CONFIG_DIR}/.hmac_key"
 OPTIONS="/data/options.json"
 
@@ -135,6 +135,8 @@ fi
 # Invidious — write configuration
 # ---------------------------------------------------------------------------
 bashio::log.info "Writing Invidious configuration..."
+
+mkdir -p /opt/invidious/config
 
 {
 # ── DATABASE ───────────────────────────────────────────────────────────────
@@ -348,7 +350,7 @@ printf '    - "%s"\n' "$(opt comments_2)"
 # ---------------------------------------------------------------------------
 bashio::log.info "Starting Invidious on port 3000..."
 cd /opt/invidious
-"${INVIDIOUS_BIN}" --config "${CONFIG_FILE}" &
+"${INVIDIOUS_BIN}" -c "${CONFIG_FILE}" &
 INV_PID=$!
 
 bashio::log.info "Invidious is running (PID ${INV_PID})."

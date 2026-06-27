@@ -32,8 +32,10 @@ RUN \
     && ln -sf "${PG_BINDIR}/postgres" /usr/local/bin/postgres \
     && ln -sf "${PG_BINDIR}/pg_ctl"   /usr/local/bin/pg_ctl
 
-# Copy Invidious binary and static assets from official image
+# Copy Invidious binary and static assets from official image.
+# Remove any pre-shipped config.yml — run.sh generates one from HA options.
 COPY --from=invidious-src /invidious /opt/invidious
+RUN rm -f /opt/invidious/config/config.yml
 
 COPY rootfs/run.sh /run.sh
 RUN chmod +x /run.sh
