@@ -121,14 +121,18 @@ mkdir -p "${CONFIG_DIR}"
 
 HMAC_KEY="$(opt hmac_key)"
 if [[ -z "${HMAC_KEY}" ]]; then
-    if [[ -f "${HMAC_KEY_FILE}" ]]; then
-        HMAC_KEY="$(cat "${HMAC_KEY_FILE}")"
-    else
+    [[ -f "${HMAC_KEY_FILE}" ]] && HMAC_KEY="$(< "${HMAC_KEY_FILE}")"
+    if [[ -z "${HMAC_KEY}" ]]; then
         HMAC_KEY="$(openssl rand -hex 32)"
-        echo "${HMAC_KEY}" > "${HMAC_KEY_FILE}"
+        printf '%s' "${HMAC_KEY}" > "${HMAC_KEY_FILE}"
         chmod 600 "${HMAC_KEY_FILE}"
         bashio::log.info "Generated new HMAC key."
     fi
+fi
+
+if [[ -z "${HMAC_KEY}" ]]; then
+    bashio::log.fatal "HMAC key could not be resolved. Cannot start Invidious."
+    exit 1
 fi
 
 # ---------------------------------------------------------------------------
