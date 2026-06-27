@@ -26,7 +26,11 @@ RUN \
         postgresql-client \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /run/postgresql /var/log/postgresql \
-    && chown postgres:postgres /run/postgresql /var/log/postgresql
+    && chown postgres:postgres /run/postgresql /var/log/postgresql \
+    && PG_BINDIR="$(ls -d /usr/lib/postgresql/*/bin | head -1)" \
+    && ln -sf "${PG_BINDIR}/initdb"   /usr/local/bin/initdb \
+    && ln -sf "${PG_BINDIR}/postgres" /usr/local/bin/postgres \
+    && ln -sf "${PG_BINDIR}/pg_ctl"   /usr/local/bin/pg_ctl
 
 # Copy Invidious binary and static assets from official image
 COPY --from=invidious-src /invidious /opt/invidious
