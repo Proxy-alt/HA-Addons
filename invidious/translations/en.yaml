@@ -1,0 +1,36 @@
+configuration:
+  hmac_key:
+    name: HMAC Key
+    description: >-
+      Secret key for signing user sessions. Leave empty to auto-generate and
+      persist a key (recommended). Changing this key will log out all users.
+  domain:
+    name: Domain
+    description: >-
+      External domain where Invidious is reachable (e.g. invidious.example.com).
+      Leave empty when accessing only through Home Assistant Ingress.
+  https_only:
+    name: HTTPS Only
+    description: >-
+      Redirect all HTTP requests to HTTPS. Only enable when a reverse proxy
+      with HTTPS is configured in front of Invidious.
+  registration_enabled:
+    name: Allow Registration
+    description: Allow new visitors to create Invidious accounts.
+  login_enabled:
+    name: Allow Login
+    description: Allow existing users to sign in to their accounts.
+  default_home:
+    name: Default Home Page
+    description: >-
+      Page shown when a visitor first opens Invidious.
+      Options: Top, Trending, Subscriptions, Playlists.
+  feed_menu:
+    name: Feed Menu Items
+    description: Items displayed in the top navigation menu.
+  channel_threads:
+    name: Channel Threads
+    description: Number of background threads for fetching channel metadata.
+  feed_threads:
+    name: Feed Threads
+    description: Number of background threads for fetching subscription feeds.

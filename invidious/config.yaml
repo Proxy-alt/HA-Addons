@@ -1,0 +1,49 @@
+name: Invidious
+version: "2024.12.0"
+slug: invidious
+description: >-
+  Privacy-respecting YouTube frontend. Watch YouTube videos without ads,
+  tracking, or a Google account.
+url: https://github.com/iv-org/invidious
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+map:
+  - type: data
+    read_only: false
+options:
+  hmac_key: ""
+  domain: ""
+  https_only: false
+  registration_enabled: true
+  login_enabled: true
+  default_home: "Top"
+  feed_menu:
+    - "Top"
+    - "Trending"
+    - "Subscriptions"
+    - "Playlists"
+  channel_threads: 1
+  feed_threads: 1
+schema:
+  hmac_key: str
+  domain: str
+  https_only: bool
+  registration_enabled: bool
+  login_enabled: bool
+  default_home: str
+  feed_menu:
+    - str
+  channel_threads: int
+  feed_threads: int
+ports:
+  3000/tcp: 3000
+ports_description:
+  3000/tcp: Invidious Web Interface
+ingress: true
+ingress_port: 3000
+panel_icon: mdi:youtube
+panel_title: Invidious
