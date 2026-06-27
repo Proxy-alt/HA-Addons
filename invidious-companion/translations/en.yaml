@@ -1,0 +1,33 @@
+configuration:
+  # ── Authentication ────────────────────────────────────────────────────────
+  companion_key:
+    name: Companion API Key
+    description: >-
+      Shared secret used to authenticate communication between Invidious and
+      Invidious Companion. Must be exactly 16 characters. This value must match
+      the Companion API Key set in the Invidious add-on.
+
+  # ── Performance ───────────────────────────────────────────────────────────
+  download_threads:
+    name: Download Threads
+    description: >-
+      Number of parallel threads used to fetch video streams from YouTube.
+      Increasing this value allows more concurrent stream requests but uses
+      more CPU and memory. Default: 4.
+
+  # ── Outbound proxy ────────────────────────────────────────────────────────
+  http_proxy:
+    name: HTTP Proxy URL
+    description: >-
+      Full URL of an HTTP/HTTPS proxy for Companion's outbound requests to
+      YouTube (e.g. http://proxy.example.com:3128). Leave empty to connect
+      directly.
+  socks_proxy_host:
+    name: SOCKS Proxy Host
+    description: >-
+      Hostname or IP of a SOCKS proxy. Leave empty to disable SOCKS proxying.
+  socks_proxy_port:
+    name: SOCKS Proxy Port
+    description: >-
+      Port of the SOCKS proxy. Only used when SOCKS Proxy Host is set.
+      Default: 1080.

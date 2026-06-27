@@ -152,7 +152,7 @@ and **HTTP Proxy Password** only if your proxy requires authentication.
 separate service that offloads video stream fetching from YouTube's servers.
 It is optional but recommended for instances that serve multiple users.
 
-To connect it, run Companion as a separate container (or add-on) and set:
+To connect it, install the **Invidious Companion** add-on from this same repository and set:
 
 | Option | Value |
 |---|---|

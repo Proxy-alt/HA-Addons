@@ -1,0 +1,40 @@
+name: Invidious Companion
+version: "2024.12.0"
+slug: invidious_companion
+description: >-
+  Video stream offloader for Invidious. Reduces YouTube rate-limiting by
+  handling video stream fetching in a dedicated side-car service.
+url: https://github.com/iv-org/invidious-companion
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+map:
+  - type: data
+    read_only: false
+options:
+  # ── Authentication ────────────────────────────────────────────────────────
+  companion_key: ""
+  # ── Performance ──────────────────────────────────────────────────────────
+  download_threads: 4
+  # ── Outbound proxy ───────────────────────────────────────────────────────
+  http_proxy: ""
+  socks_proxy_host: ""
+  socks_proxy_port: 1080
+schema:
+  # ── Authentication ────────────────────────────────────────────────────────
+  companion_key: password
+  # ── Performance ──────────────────────────────────────────────────────────
+  download_threads: int
+  # ── Outbound proxy ───────────────────────────────────────────────────────
+  http_proxy: str
+  socks_proxy_host: str
+  socks_proxy_port: int
+ports:
+  8282/tcp: 8282
+ports_description:
+  8282/tcp: Invidious Companion API
+panel_icon: mdi:youtube
+panel_title: Invidious Companion
