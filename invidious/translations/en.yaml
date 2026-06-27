@@ -1,36 +1,375 @@
 configuration:
+  # ── Server ───────────────────────────────────────────────────────────────
   hmac_key:
     name: HMAC Key
     description: >-
-      Secret key for signing user sessions. Leave empty to auto-generate and
-      persist a key (recommended). Changing this key will log out all users.
+      Secret key for signing cookies, CSRF tokens, and PubSubHub subscriptions.
+      Leave empty to auto-generate and persist a key (recommended).
+      Changing this key logs out all users and invalidates existing subscriptions.
   domain:
     name: Domain
     description: >-
-      External domain where Invidious is reachable (e.g. invidious.example.com).
-      Leave empty when accessing only through Home Assistant Ingress.
+      Fully-qualified domain name where this instance is reachable
+      (e.g. invidious.example.com). Required for absolute URLs in the API and
+      for PubSubHub. Leave empty when using Home Assistant Ingress only.
+  external_port:
+    name: External Port
+    description: >-
+      Port exposed to end-users when Invidious sits behind a reverse proxy that
+      listens on a different port than the instance itself. Set to 0 to leave
+      unset (default). Required when behind a reverse proxy.
+  alternative_domains:
+    name: Alternative Domains
+    description: >-
+      Additional domains (e.g. an .onion or .i2p address) from which the
+      instance is reachable. Used to allow login and preference updates from
+      these domains via the X-Forwarded-Host header.
   https_only:
     name: HTTPS Only
     description: >-
-      Redirect all HTTP requests to HTTPS. Only enable when a reverse proxy
-      with HTTPS is configured in front of Invidious.
+      Redirect all HTTP requests to HTTPS. Enable only when a reverse proxy
+      with HTTPS is configured in front of Invidious. Also set this to true
+      when behind a TLS-terminating proxy.
+  hsts:
+    name: Enable HSTS
+    description: >-
+      Send a Strict-Transport-Security header. Requires the domain to be
+      served exclusively over HTTPS.
+
+  # ── Network (outbound) ───────────────────────────────────────────────────
+  disable_proxy:
+    name: Disable Proxy
+    description: >-
+      Disable server-side video proxying. Accepted values: false (proxy
+      everything), true (proxy nothing), dash (skip DASH streams),
+      livestreams, downloads, or local. Default: false.
+  pool_size:
+    name: HTTP Pool Size
+    description: >-
+      Number of connections per YouTube domain in the outbound connection pool.
+      Increase if you see connection errors under heavy load.
+  force_resolve:
+    name: Force IP Family
+    description: >-
+      Force all outbound connections to YouTube to use a specific IP address
+      family. Accepted values: ipv4, ipv6. Leave empty to use the system
+      default. Can help work around YouTube rate-limiting.
+  cookies:
+    name: YouTube Cookies
+    description: >-
+      Additional cookies to send with every request to the YouTube API.
+      Format: "name1=value1; name2=value2". Useful for authenticated
+      or region-unlocked playback. Treat as a secret — contains session data.
+  use_innertube_for_captions:
+    name: Use InnerTube for Captions
+    description: >-
+      Use YouTube's InnerTube API to fetch closed captions instead of the
+      standard timedtext endpoint. InnerTube is not rate-limited, making it
+      better suited for larger instances.
+  http_proxy_host:
+    name: HTTP Proxy Host
+    description: >-
+      Hostname or IP of an HTTP/HTTPS proxy for Invidious's outbound requests
+      to YouTube. Leave empty to disable. Note: does not apply to video stream
+      proxying — configure that in Invidious Companion instead.
+  http_proxy_port:
+    name: HTTP Proxy Port
+    description: Port of the outbound HTTP proxy. Only used when HTTP Proxy Host is set.
+  http_proxy_user:
+    name: HTTP Proxy Username
+    description: Username for proxy authentication. Leave empty if not required.
+  http_proxy_password:
+    name: HTTP Proxy Password
+    description: Password for proxy authentication. Leave empty if not required.
+
+  # ── Logging ──────────────────────────────────────────────────────────────
+  log_level:
+    name: Log Level
+    description: >-
+      Verbosity of the Invidious logs. Accepted values (least to most verbose):
+      Off, Fatal, Error, Warn, Info, Debug, Trace, All. Default: Info.
+
+  # ── Features ─────────────────────────────────────────────────────────────
+  popular_enabled:
+    name: Enable Popular Tab
+    description: >-
+      Show the "Popular" videos tab on the home page. Disable to hide
+      trending/popular content from all users.
+  statistics_enabled:
+    name: Enable Statistics API
+    description: >-
+      Expose instance statistics at /api/v1/stats (user count, version, etc.).
+      Required for public instances registered on api.invidious.io.
+
+  # ── Users & accounts ─────────────────────────────────────────────────────
   registration_enabled:
     name: Allow Registration
-    description: Allow new visitors to create Invidious accounts.
+    description: Allow new visitors to create local Invidious accounts.
   login_enabled:
     name: Allow Login
     description: Allow existing users to sign in to their accounts.
+  captcha_enabled:
+    name: Enable Login Captcha
+    description: >-
+      Show a simple built-in captcha challenge on the login page.
+      Does not depend on any third-party service.
+  admins:
+    name: Administrators
+    description: >-
+      Usernames granted administrator rights. Admins can change server-wide
+      settings (popular_enabled, captcha_enabled, registration_enabled, etc.)
+      and default user preferences from the /preferences page.
+  enable_user_notifications:
+    name: Enable User Notifications
+    description: >-
+      Track and deliver new-video notifications for subscribed channels.
+      Disable on large instances to reduce database writes and improve
+      overall performance.
+
+  # ── Background jobs ──────────────────────────────────────────────────────
+  channel_threads:
+    name: Channel Threads
+    description: >-
+      Number of parallel threads used to crawl channel uploads during
+      subscription updates.
+  feed_threads:
+    name: Feed Threads
+    description: Number of parallel threads used to refresh RSS subscription feeds.
+  channel_refresh_interval:
+    name: Channel Refresh Interval
+    description: >-
+      How often to re-crawl subscribed channels for new videos.
+      Accepts a duration string such as 30m, 1h, or 2h30m.
+  full_refresh:
+    name: Full Channel Refresh
+    description: >-
+      Re-download the entire video list for every subscribed channel on each
+      refresh instead of only fetching recent uploads. Much slower but
+      catches videos that were missed during a partial crawl.
+  jobs_clear_expired_items:
+    name: Job: Clear Expired Items
+    description: Enable the background job that removes expired database entries.
+  jobs_refresh_channels:
+    name: Job: Refresh Channels
+    description: Enable the background job that crawls subscribed channels for new videos.
+  jobs_refresh_feeds:
+    name: Job: Refresh Feeds
+    description: Enable the background job that updates RSS subscription feeds.
+
+  # ── Database ─────────────────────────────────────────────────────────────
+  check_tables:
+    name: Auto-check Database Tables
+    description: >-
+      Automatically create missing tables and columns on startup.
+      Keeps the database schema in sync without manual migrations.
+      Recommended to leave enabled.
+
+  # ── Miscellaneous ────────────────────────────────────────────────────────
+  banner:
+    name: Instance Banner
+    description: >-
+      Message displayed at the top of every page. HTML is accepted.
+      Useful for maintenance notices or instance announcements.
+  use_pubsub_feeds:
+    name: PubSubHub Subscriptions
+    description: >-
+      Subscribe to channels via Google PubSubHubbub for instant new-video
+      notifications. Accepted values: false (disabled), true (enabled,
+      unlimited concurrent subscriptions), or a positive integer to cap
+      concurrent subscriptions. Requires domain and hmac_key to be set.
+  cache_annotations:
+    name: Cache Video Annotations
+    description: >-
+      Store video annotations in the database. Empty annotations and
+      card-only annotations are not cached regardless of this setting.
+  playlist_length_limit:
+    name: Max Playlist Length
+    description: Maximum number of videos allowed in a custom user playlist.
+  dmca_content:
+    name: DMCA-Blocked Video IDs
+    description: >-
+      List of YouTube video IDs for which the download widget must be hidden
+      to comply with DMCA takedown requests. Public instance operators only.
+
+  # ── Invidious Companion ──────────────────────────────────────────────────
+  companion_private_url:
+    name: Companion Private URL
+    description: >-
+      Internal URL of an Invidious Companion instance used to offload video
+      stream loading from YouTube servers. Leave empty to disable.
+      Example: http://companion:8282/companion
+  companion_public_url:
+    name: Companion Public URL
+    description: >-
+      Public-facing URL of the Invidious Companion instance. When set, user
+      browsers will fetch streams directly from Companion instead of through
+      Invidious. Leave empty to proxy all Companion traffic through Invidious.
+  companion_key:
+    name: Companion API Key
+    description: >-
+      Shared secret for authenticating communication between Invidious and
+      Invidious Companion. Must be exactly 16 characters. Required when
+      Companion Private URL is set.
+
+  # ── Default user preferences ─────────────────────────────────────────────
+  locale:
+    name: Default Language
+    description: >-
+      Default UI language for all users. Overriding the English default is
+      not recommended for public instances. Accepted values: ar, da, de,
+      en-US, el, eo, es, fa, fi, fr, he, hr, id, is, it, ja, nb-NO, nl,
+      pl, pt-BR, pt-PT, ro, ru, sv, tr, uk, zh-CN, zh-TW.
+  region:
+    name: Default Region
+    description: >-
+      Default geographic region used for trending and regional content.
+      Accepted values: two-letter ISO 3166-1 alpha-2 country code (e.g. US, GB, DE).
+  dark_mode:
+    name: Default Theme
+    description: >-
+      Default color theme. Accepted values: auto (follow browser preference),
+      dark, light.
+  thin_mode:
+    name: Thin Mode by Default
+    description: Hide video thumbnails to reduce bandwidth and show a compact list view.
   default_home:
     name: Default Home Page
     description: >-
-      Page shown when a visitor first opens Invidious.
-      Options: Top, Trending, Subscriptions, Playlists.
+      Feed shown on the home page for users without a preferences cookie.
+      Accepted values: Popular, Trending, Subscriptions, Playlists.
+      Note: "Popular" has no effect when popular_enabled is false.
   feed_menu:
     name: Feed Menu Items
-    description: Items displayed in the top navigation menu.
-  channel_threads:
-    name: Channel Threads
-    description: Number of background threads for fetching channel metadata.
-  feed_threads:
-    name: Feed Threads
-    description: Number of background threads for fetching subscription feeds.
+    description: >-
+      Navigation items shown in the top menu. Each entry can be one of:
+      Popular, Trending, Subscriptions, Playlists.
+  max_results:
+    name: Default Results Per Page
+    description: >-
+      Number of videos shown per page in watch history and subscription feeds.
+      Does not affect search results, playlists, or channel pages.
+  annotations:
+    name: Show Annotations by Default
+    description: Display legacy YouTube annotations on videos.
+  annotations_subscribed:
+    name: Show Annotations for Subscribed Channels
+    description: Show annotations only for channels the user is subscribed to.
+  comments_1:
+    name: Primary Comment Source
+    description: >-
+      Source for the main comments section below a video.
+      Accepted values: youtube, reddit, or empty string (hide comments).
+  comments_2:
+    name: Secondary Comment Source
+    description: >-
+      Source for a second comments tab. Accepted values: youtube, reddit,
+      or empty string (hide second tab).
+  player_style:
+    name: Default Player Style
+    description: >-
+      Video player appearance. Accepted values: invidious (custom player),
+      youtube (closer to YouTube's native look).
+  related_videos:
+    name: Show Related Videos
+    description: Display the related videos sidebar when watching a video.
+  preload:
+    name: Preload Video
+    description: >-
+      Buffer some video data while the page loads (HTML5 preload attribute).
+      Set to false to save bandwidth — the user must press Play first.
+  autoplay:
+    name: Autoplay Videos
+    description: Automatically start playing videos when the page loads.
+  continue_videos:
+    name: Auto-play Next Video
+    description: Automatically load the next video (playlist or suggested) when one ends.
+  continue_autoplay:
+    name: Autoplay Next Video Without Prompt
+    description: >-
+      When auto-play next video is enabled, start the next video automatically
+      without showing a countdown. Only effective when continue_videos is true.
+  listen:
+    name: Audio-Only Mode by Default
+    description: Load only the audio track of videos to save bandwidth.
+  video_loop:
+    name: Loop Videos by Default
+    description: Replay videos automatically when they end.
+  quality:
+    name: Default Video Quality
+    description: >-
+      Preferred video quality. Accepted values: dash (adaptive streaming),
+      hd720, medium, small.
+  quality_dash:
+    name: Default DASH Quality
+    description: >-
+      Target quality when using DASH adaptive streaming. Accepted values:
+      auto, best, 4320p, 2160p, 1440p, 1080p, 720p, 480p, 360p, 240p, 144p, worst.
+      Only effective when quality is set to "dash".
+  speed:
+    name: Default Playback Speed
+    description: >-
+      Initial playback speed. Accepted values: 0.25, 0.5, 0.75, 1.0,
+      1.25, 1.5, 1.75, 2.0.
+  volume:
+    name: Default Volume
+    description: Initial player volume (0–100).
+  vr_mode:
+    name: Enable 360° Video Mode
+    description: >-
+      Allow 360° / VR videos to render with WebGL. Requires a WebGL-capable
+      browser. Disable to fall back to standard video playback.
+  save_player_pos:
+    name: Save Playback Position
+    description: >-
+      Remember where the user stopped watching each video and resume from
+      that position on the next visit.
+  latest_only:
+    name: Show Only Latest Video per Channel
+    description: >-
+      In the Subscriptions feed, show only the most recent video from each
+      subscribed channel instead of all recent videos.
+  notifications_only:
+    name: Show Only Unnotified Videos
+    description: In the Subscriptions feed, show only videos that triggered a notification.
+  unseen_only:
+    name: Show Only Unwatched Videos
+    description: >-
+      In the Subscriptions feed, show only videos not yet in the watch history.
+      When combined with latest_only, shows the latest unwatched video per channel.
+  sort:
+    name: Default Feed Sort Order
+    description: >-
+      Sorting order for subscription feeds. Accepted values:
+      published, published - reverse, alphabetically, alphabetically - reverse,
+      channel name, channel name - reverse.
+  proxy_videos:
+    name: Proxy Videos Through Instance
+    description: >-
+      Route video streams through the Invidious server instead of fetching
+      directly from YouTube CDN. Increases privacy but significantly raises
+      server bandwidth. Avoid enabling as a default on shared instances.
+  show_nick:
+    name: Show Username in Header
+    description: Display the logged-in user's username in the top-right corner.
+  automatic_instance_redirect:
+    name: Automatic Instance Redirect
+    description: >-
+      When clicking a "switch instance" link, redirect to a randomly chosen
+      Invidious instance. When disabled, users are sent to redirect.invidious.io
+      to pick an instance manually.
+  extend_desc:
+    name: Expand Video Description by Default
+    description: >-
+      Show the full video description without requiring the user to click
+      "Show more". When disabled, only the first few lines are shown initially.
+  caption_1:
+    name: Preferred Caption Language 1
+    description: >-
+      First preferred language for automatic caption selection.
+      Leave empty for no preference. Example: English.
+  caption_2:
+    name: Preferred Caption Language 2
+    description: Second preferred caption language. Leave empty for no preference.
+  caption_3:
+    name: Preferred Caption Language 3
+    description: Third preferred caption language. Leave empty for no preference.
