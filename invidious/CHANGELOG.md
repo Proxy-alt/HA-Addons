@@ -1,3 +1,13 @@
+## 2024.12.2
+
+### Fixed
+
+- Preference changes made by administrators on the Invidious `/preferences` page
+  (which Invidious saves to `config.yml`) now persist across restarts. The
+  generated config is stored on the `/data` volume and is only regenerated when
+  the add-on options actually change, so admin web-UI changes are no longer
+  overwritten on every start.
+
 ## 2024.12.1
 
 ### Added

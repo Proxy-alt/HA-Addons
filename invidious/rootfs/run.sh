@@ -10,7 +10,16 @@ source "${BASHIO_LIB:-/usr/lib/bashio/bashio.sh}"
 PGDATA="/data/postgres"
 INVIDIOUS_BIN="/opt/invidious/invidious"
 CONFIG_DIR="/data/invidious"
-CONFIG_FILE="/opt/invidious/config/config.yml"
+# Keep the generated config on the persistent /data volume. Invidious writes
+# admin-UI preference changes back to "config/config.yml" relative to its
+# working dir; CONFIG_LINK is symlinked to CONFIG_FILE so those writes land on
+# /data and survive container restarts/updates.
+CONFIG_FILE="${CONFIG_DIR}/config.yml"
+CONFIG_LINK="/opt/invidious/config/config.yml"
+# Snapshot of the options last used to generate CONFIG_FILE. We regenerate only
+# when the HA options actually change, so preference changes made through the
+# Invidious admin web UI are preserved across restarts.
+OPTIONS_SNAPSHOT="${CONFIG_DIR}/.last_options.json"
 OPTIONS="/data/options.json"
 SUPERVISOR_API="${SUPERVISOR_API:-http://supervisor}"
 
@@ -129,12 +138,39 @@ resolve_hmac_key() {
 }
 
 # ---------------------------------------------------------------------------
+# Symlink Invidious's relative write path to the persistent config file so
+# admin-UI preference changes (which Invidious saves to config/config.yml) are
+# written to /data and survive restarts.
+# ---------------------------------------------------------------------------
+link_config() {
+    mkdir -p "${CONFIG_DIR}" "$(dirname "${CONFIG_LINK}")"
+    ln -sf "${CONFIG_FILE}" "${CONFIG_LINK}"
+}
+
+# ---------------------------------------------------------------------------
+# True when a generated config already exists and the HA options have not
+# changed since it was written. In that case we leave the file untouched so
+# that preference changes made through the Invidious admin web UI are kept.
+# ---------------------------------------------------------------------------
+config_is_current() {
+    [[ -f "${CONFIG_FILE}" ]] || return 1
+    [[ -f "${OPTIONS_SNAPSHOT}" ]] || return 1
+    jq -e -n --slurpfile a "${OPTIONS}" --slurpfile b "${OPTIONS_SNAPSHOT}" \
+        '$a[0] == $b[0]' >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------------------
 # Invidious — write configuration
 # ---------------------------------------------------------------------------
 write_invidious_config() {
+    if config_is_current; then
+        bashio::log.info "Add-on options unchanged; keeping existing Invidious config (preserving any admin web-UI changes)."
+        return 0
+    fi
+
     bashio::log.info "Writing Invidious configuration..."
 
-    mkdir -p "$(dirname "${CONFIG_FILE}")"
+    mkdir -p "${CONFIG_DIR}" "$(dirname "${CONFIG_FILE}")"
 
     {
 # DATABASE
@@ -347,6 +383,10 @@ printf '    - "%s"\n' "$(opt comments_1)"
 printf '    - "%s"\n' "$(opt comments_2)"
 
     } > "${CONFIG_FILE}"
+
+    # Record the options we generated from, so the next start can detect whether
+    # the HA options changed (regenerate) or not (preserve admin web changes).
+    cp "${OPTIONS}" "${OPTIONS_SNAPSHOT}"
 }
 
 # ---------------------------------------------------------------------------
@@ -425,6 +465,8 @@ main() {
     # Reflect an auto-generated key back into the add-on options so it is
     # visible in the UI and reused as the canonical source going forward.
     persist_option hmac_key "${HMAC_KEY}"
+    # Point Invidious's config write path at the persistent file before writing.
+    link_config
     write_invidious_config
 
     # ---------------------------------------------------------------------------

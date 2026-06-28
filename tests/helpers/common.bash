@@ -38,6 +38,8 @@ load_invidious_run() {
     OPTIONS="${fixture}"
     CONFIG_DIR="${TEST_TMPDIR}/invidious"
     CONFIG_FILE="${TEST_TMPDIR}/config.yml"
+    CONFIG_LINK="${TEST_TMPDIR}/opt-config.yml"
+    OPTIONS_SNAPSHOT="${CONFIG_DIR}/.last_options.json"
     HMAC_KEY="${hmac_key}"
 }
 

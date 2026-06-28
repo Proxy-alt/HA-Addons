@@ -197,6 +197,28 @@ Notable ones to consider:
 
 ---
 
+## Configuration persistence
+
+The add-on generates Invidious' `config.yml` from the options above and stores it
+on the persistent `/data` volume. Invidious itself writes some settings back to
+that file when an administrator changes them on the `/preferences` page (for
+example **Popular enabled**, **Registration/Login enabled**, **CAPTCHA**,
+**Report statistics**, and the instance default preferences).
+
+To keep those admin changes:
+
+- The config is **only regenerated when you change an add-on option** in Home
+  Assistant. As long as the add-on options are untouched, changes made through
+  the Invidious admin web UI are preserved across restarts and updates.
+- **Editing any add-on option takes precedence** — it regenerates `config.yml`
+  from the options and overwrites changes made via the web UI. Decide where you
+  want to manage these settings and stick to it.
+
+Logged-in user preferences are stored in the bundled PostgreSQL database (under
+`/data`) and are unaffected by either path.
+
+---
+
 ## Logs
 
 Invidious logs go to the add-on's log output (visible under **Log** in the
