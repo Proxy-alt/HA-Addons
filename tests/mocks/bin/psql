@@ -1,0 +1,11 @@
+#!/bin/bash
+# Mock psql.
+# When called with -lqt (list databases), output nothing so the
+# "invidious DB already exists" check returns false (triggers DB creation).
+# Set MOCK_PSQL_DB_EXISTS=1 to simulate an existing invidious database.
+if [[ "${*}" == *"-lqt"* ]]; then
+    if [[ "${MOCK_PSQL_DB_EXISTS:-0}" == "1" ]]; then
+        printf ' invidious                 | kemal    | UTF8\n'
+    fi
+fi
+exit 0

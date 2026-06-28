@@ -1,0 +1,7 @@
+{
+  "companion_key": "secret1234567890",
+  "download_threads": 4,
+  "http_proxy": "",
+  "socks_proxy_host": "",
+  "socks_proxy_port": 1080
+}

@@ -1,0 +1,4 @@
+#!/bin/bash
+# Mock tini: skip the "--" separator and exec the remainder.
+shift  # drop "--"
+exec "$@"

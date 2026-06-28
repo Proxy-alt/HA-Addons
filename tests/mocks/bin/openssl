@@ -1,0 +1,8 @@
+#!/bin/bash
+# Mock openssl: return a fixed 64-char hex string for "rand -hex 32".
+if [[ "$1" == "rand" && "$2" == "-hex" && "$3" == "32" ]]; then
+    printf 'deadbeef12345678deadbeef12345678deadbeef12345678deadbeef12345678\n'
+    exit 0
+fi
+# Fall through to real openssl for anything else.
+exec /usr/bin/openssl "$@"

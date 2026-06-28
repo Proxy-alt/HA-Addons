@@ -1,0 +1,4 @@
+#!/bin/bash
+# Mock invidious_companion binary: record invocation and exit cleanly.
+echo "companion started" >&2
+exit 0

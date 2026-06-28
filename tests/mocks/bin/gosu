@@ -1,0 +1,4 @@
+#!/bin/bash
+# Mock gosu: drop the user argument and run the remainder as the current user.
+shift
+exec "$@"

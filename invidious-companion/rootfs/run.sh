@@ -2,11 +2,13 @@
 # shellcheck disable=SC1091
 set -euo pipefail
 
-source /usr/lib/bashio/bashio.sh
+source "${BASHIO_LIB:-/usr/lib/bashio/bashio.sh}"
 
-OPTIONS="/data/options.json"
+OPTIONS="${OPTIONS:-/data/options.json}"
 
-opt() { jq -r --arg k "$1" '.[$k] // empty' "${OPTIONS}"; }
+# Uses select(. != null) so boolean false is returned as "false" rather than
+# being silently discarded by jq's // empty alternative operator.
+opt() { jq -r --arg k "$1" '.[$k] | select(. != null)' "${OPTIONS}"; }
 
 # ---------------------------------------------------------------------------
 # Companion Key — required
@@ -53,4 +55,4 @@ fi
 # Start Invidious Companion
 # ---------------------------------------------------------------------------
 bashio::log.info "Starting Invidious Companion on port 8282..."
-exec /usr/local/bin/tini -- /usr/local/bin/invidious_companion
+exec "${TINI_BIN:-/usr/local/bin/tini}" -- "${COMPANION_BIN:-/usr/local/bin/invidious_companion}"

@@ -1,0 +1,5 @@
+#!/bin/bash
+# Mock postgres: sleep briefly so PG_PID is valid, then exit.
+sleep 30 &
+echo $!
+wait

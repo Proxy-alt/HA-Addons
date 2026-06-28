@@ -1,0 +1,11 @@
+#!/bin/bash
+# Mock initdb: create PG_VERSION so the "first run" check passes next time.
+PGDATA_ARG=""
+for arg in "$@"; do
+    [[ "${arg}" == --pgdata=* ]] && PGDATA_ARG="${arg#--pgdata=}"
+done
+if [[ -n "${PGDATA_ARG}" ]]; then
+    mkdir -p "${PGDATA_ARG}"
+    echo "15" > "${PGDATA_ARG}/PG_VERSION"
+fi
+exit 0

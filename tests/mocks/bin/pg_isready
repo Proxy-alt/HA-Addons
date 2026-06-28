@@ -1,0 +1,3 @@
+#!/bin/bash
+# Mock pg_isready: always report ready.
+exit 0

@@ -2,7 +2,7 @@
 # shellcheck disable=SC1091
 set -euo pipefail
 
-source /usr/lib/bashio/bashio.sh
+source "${BASHIO_LIB:-/usr/lib/bashio/bashio.sh}"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -10,19 +10,21 @@ source /usr/lib/bashio/bashio.sh
 PGDATA="/data/postgres"
 INVIDIOUS_BIN="/opt/invidious/invidious"
 CONFIG_DIR="/data/invidious"
-CONFIG_FILE="/opt/invidious/config/config.yml"   # default path Invidious looks for
-HMAC_KEY_FILE="${CONFIG_DIR}/.hmac_key"
+CONFIG_FILE="/opt/invidious/config/config.yml"
 OPTIONS="/data/options.json"
 
 PG_PID=""
 INV_PID=""
+HMAC_KEY=""
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-# Read a scalar option from options.json by key name
-opt() { jq -r --arg k "$1" '.[$k] // empty' "${OPTIONS}"; }
+# Read a scalar option from options.json by key name.
+# Uses select(. != null) so that boolean false is returned as "false"
+# rather than silently discarded the way jq's // empty operator behaves.
+opt() { jq -r --arg k "$1" '.[$k] | select(. != null)' "${OPTIONS}"; }
 
 # Output a YAML value that can be a YAML boolean or quoted string.
 # Use for fields where Invidious accepts true/false OR a string keyword.
@@ -49,100 +51,41 @@ cleanup() {
         wait "${PG_PID}" 2>/dev/null || true
     fi
 }
-trap cleanup EXIT SIGTERM SIGINT SIGQUIT
-
-# ---------------------------------------------------------------------------
-# PostgreSQL — initialise data directory on first run
-# ---------------------------------------------------------------------------
-if [[ ! -f "${PGDATA}/PG_VERSION" ]]; then
-    bashio::log.info "Initialising PostgreSQL data directory..."
-    mkdir -p "${PGDATA}"
-    chown -R postgres:postgres "${PGDATA}"
-    gosu postgres initdb \
-        --pgdata="${PGDATA}" \
-        --encoding=UTF8 \
-        --locale=C.UTF-8 \
-        --auth-local=trust \
-        --auth-host=trust \
-        --no-sync
-    bashio::log.info "PostgreSQL initialised."
-fi
-
-# ---------------------------------------------------------------------------
-# PostgreSQL — start
-# ---------------------------------------------------------------------------
-bashio::log.info "Starting PostgreSQL..."
-mkdir -p /run/postgresql
-chown -R postgres:postgres /run/postgresql
-
-gosu postgres postgres \
-    -D "${PGDATA}" \
-    -c listen_addresses=127.0.0.1 \
-    -c logging_collector=off \
-    &
-PG_PID=$!
-
-# ---------------------------------------------------------------------------
-# PostgreSQL — wait until ready
-# ---------------------------------------------------------------------------
-bashio::log.info "Waiting for PostgreSQL to accept connections..."
-TIMEOUT=60
-for i in $(seq 1 "${TIMEOUT}"); do
-    if gosu postgres pg_isready -h 127.0.0.1 -p 5432 -q 2>/dev/null; then
-        bashio::log.info "PostgreSQL is ready."
-        break
-    fi
-    if [[ "${i}" -eq "${TIMEOUT}" ]]; then
-        bashio::log.fatal "PostgreSQL did not become ready within ${TIMEOUT} seconds."
-        exit 1
-    fi
-    sleep 1
-done
-
-# ---------------------------------------------------------------------------
-# PostgreSQL — create database and user on first run
-# ---------------------------------------------------------------------------
-if ! gosu postgres psql -lqt 2>/dev/null | cut -d '|' -f 1 | grep -qw invidious; then
-    bashio::log.info "Creating Invidious database..."
-    gosu postgres psql -v ON_ERROR_STOP=1 <<-EOSQL
-        CREATE USER kemal WITH PASSWORD 'kemal';
-        CREATE DATABASE invidious OWNER kemal ENCODING 'UTF8';
-EOSQL
-    gosu postgres psql -v ON_ERROR_STOP=1 -d invidious <<-EOSQL
-        CREATE EXTENSION IF NOT EXISTS pg_trgm;
-EOSQL
-    bashio::log.info "Database created."
-fi
 
 # ---------------------------------------------------------------------------
 # Invidious — resolve HMAC key
 # ---------------------------------------------------------------------------
-mkdir -p "${CONFIG_DIR}"
+resolve_hmac_key() {
+    local hmac_key_file="${CONFIG_DIR}/.hmac_key"
 
-HMAC_KEY="$(opt hmac_key)"
-if [[ -z "${HMAC_KEY}" ]]; then
-    [[ -f "${HMAC_KEY_FILE}" ]] && HMAC_KEY="$(< "${HMAC_KEY_FILE}")"
+    mkdir -p "${CONFIG_DIR}"
+
+    HMAC_KEY="$(opt hmac_key)"
     if [[ -z "${HMAC_KEY}" ]]; then
-        HMAC_KEY="$(openssl rand -hex 32)"
-        printf '%s' "${HMAC_KEY}" > "${HMAC_KEY_FILE}"
-        chmod 600 "${HMAC_KEY_FILE}"
-        bashio::log.info "Generated new HMAC key."
+        [[ -f "${hmac_key_file}" ]] && HMAC_KEY="$(< "${hmac_key_file}")"
+        if [[ -z "${HMAC_KEY}" ]]; then
+            HMAC_KEY="$(openssl rand -hex 32)"
+            printf '%s' "${HMAC_KEY}" > "${hmac_key_file}"
+            chmod 600 "${hmac_key_file}"
+            bashio::log.info "Generated new HMAC key."
+        fi
     fi
-fi
 
-if [[ -z "${HMAC_KEY}" ]]; then
-    bashio::log.fatal "HMAC key could not be resolved. Cannot start Invidious."
-    exit 1
-fi
+    if [[ -z "${HMAC_KEY}" ]]; then
+        bashio::log.fatal "HMAC key could not be resolved. Cannot start Invidious."
+        return 1
+    fi
+}
 
 # ---------------------------------------------------------------------------
 # Invidious — write configuration
 # ---------------------------------------------------------------------------
-bashio::log.info "Writing Invidious configuration..."
+write_invidious_config() {
+    bashio::log.info "Writing Invidious configuration..."
 
-mkdir -p /opt/invidious/config
+    mkdir -p "$(dirname "${CONFIG_FILE}")"
 
-{
+    {
 # ── DATABASE ───────────────────────────────────────────────────────────────
 cat <<YAML
 # Generated by Home Assistant Invidious Add-on — do not edit manually.
@@ -330,11 +273,16 @@ default_user_preferences:
   extend_desc: $(opt extend_desc)
 YAML
 
-# feed_menu (list)
-printf '  feed_menu:\n'
-jq -r '.feed_menu[]' "${OPTIONS}" | while IFS= read -r item; do
-    printf '    - "%s"\n' "${item}"
-done
+# feed_menu (list) — emit YAML empty sequence when the list has no items so
+# Invidious receives [] rather than null.
+if jq -e '.feed_menu | length > 0' "${OPTIONS}" >/dev/null 2>&1; then
+    printf '  feed_menu:\n'
+    jq -r '.feed_menu[]' "${OPTIONS}" | while IFS= read -r item; do
+        printf '    - "%s"\n' "${item}"
+    done
+else
+    printf '  feed_menu: []\n'
+fi
 
 # captions (fixed 3-item array)
 printf '  captions:\n'
@@ -347,22 +295,103 @@ printf '  comments:\n'
 printf '    - "%s"\n' "$(opt comments_1)"
 printf '    - "%s"\n' "$(opt comments_2)"
 
-} > "${CONFIG_FILE}"
+    } > "${CONFIG_FILE}"
+}
 
 # ---------------------------------------------------------------------------
-# Invidious — start
+# Main
 # ---------------------------------------------------------------------------
-bashio::log.info "Starting Invidious on port 3000..."
-cd /opt/invidious
-"${INVIDIOUS_BIN}" -c "${CONFIG_FILE}" &
-INV_PID=$!
+main() {
+    trap cleanup EXIT SIGTERM SIGINT SIGQUIT
 
-bashio::log.info "Invidious is running (PID ${INV_PID})."
+    # ---------------------------------------------------------------------------
+    # PostgreSQL — initialise data directory on first run
+    # ---------------------------------------------------------------------------
+    if [[ ! -f "${PGDATA}/PG_VERSION" ]]; then
+        bashio::log.info "Initialising PostgreSQL data directory..."
+        mkdir -p "${PGDATA}"
+        chown -R postgres:postgres "${PGDATA}"
+        gosu postgres initdb \
+            --pgdata="${PGDATA}" \
+            --encoding=UTF8 \
+            --locale=C.UTF-8 \
+            --auth-local=trust \
+            --auth-host=trust \
+            --no-sync
+        bashio::log.info "PostgreSQL initialised."
+    fi
 
-# ---------------------------------------------------------------------------
-# Monitor both processes — exit if either dies
-# ---------------------------------------------------------------------------
-wait -n "${PG_PID}" "${INV_PID}"
-EXIT_CODE=$?
-bashio::log.error "A monitored process exited (code ${EXIT_CODE}). Stopping add-on."
-exit "${EXIT_CODE}"
+    # ---------------------------------------------------------------------------
+    # PostgreSQL — start
+    # ---------------------------------------------------------------------------
+    bashio::log.info "Starting PostgreSQL..."
+    mkdir -p /run/postgresql
+    chown -R postgres:postgres /run/postgresql
+
+    gosu postgres postgres \
+        -D "${PGDATA}" \
+        -c listen_addresses=127.0.0.1 \
+        -c logging_collector=off \
+        &
+    PG_PID=$!
+
+    # ---------------------------------------------------------------------------
+    # PostgreSQL — wait until ready
+    # ---------------------------------------------------------------------------
+    bashio::log.info "Waiting for PostgreSQL to accept connections..."
+    TIMEOUT=60
+    for i in $(seq 1 "${TIMEOUT}"); do
+        if gosu postgres pg_isready -h 127.0.0.1 -p 5432 -q 2>/dev/null; then
+            bashio::log.info "PostgreSQL is ready."
+            break
+        fi
+        if [[ "${i}" -eq "${TIMEOUT}" ]]; then
+            bashio::log.fatal "PostgreSQL did not become ready within ${TIMEOUT} seconds."
+            exit 1
+        fi
+        sleep 1
+    done
+
+    # ---------------------------------------------------------------------------
+    # PostgreSQL — create database and user on first run
+    # ---------------------------------------------------------------------------
+    if ! gosu postgres psql -lqt 2>/dev/null | cut -d '|' -f 1 | grep -qw invidious; then
+        bashio::log.info "Creating Invidious database..."
+        gosu postgres psql -v ON_ERROR_STOP=1 <<-EOSQL
+			CREATE USER kemal WITH PASSWORD 'kemal';
+			CREATE DATABASE invidious OWNER kemal ENCODING 'UTF8';
+		EOSQL
+        gosu postgres psql -v ON_ERROR_STOP=1 -d invidious <<-EOSQL
+			CREATE EXTENSION IF NOT EXISTS pg_trgm;
+		EOSQL
+        bashio::log.info "Database created."
+    fi
+
+    # ---------------------------------------------------------------------------
+    # Invidious — resolve HMAC key and write configuration
+    # ---------------------------------------------------------------------------
+    resolve_hmac_key
+    write_invidious_config
+
+    # ---------------------------------------------------------------------------
+    # Invidious — start
+    # ---------------------------------------------------------------------------
+    bashio::log.info "Starting Invidious on port 3000..."
+    cd /opt/invidious
+    INVIDIOUS_CONFIG_FILE="${CONFIG_FILE}" "${INVIDIOUS_BIN}" &
+    INV_PID=$!
+
+    bashio::log.info "Invidious is running (PID ${INV_PID})."
+
+    # ---------------------------------------------------------------------------
+    # Monitor both processes — exit if either dies
+    # ---------------------------------------------------------------------------
+    wait -n "${PG_PID}" "${INV_PID}"
+    EXIT_CODE=$?
+    bashio::log.error "A monitored process exited (code ${EXIT_CODE}). Stopping add-on."
+    exit "${EXIT_CODE}"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main
+fi
