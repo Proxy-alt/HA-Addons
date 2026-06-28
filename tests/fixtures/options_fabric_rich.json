@@ -39,5 +39,8 @@
   "extra_mods": [
     "carpet"
   ],
-  "whitelist": []
+  "whitelist": [],
+  "viaversion_enabled": false,
+  "viabackwards_enabled": false,
+  "viarewind_enabled": false
 }

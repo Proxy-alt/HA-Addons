@@ -1,5 +1,5 @@
 name: Fabric Server
-version: "1.1.1"
+version: "1.1.2"
 slug: fabric_server
 description: >-
   Minecraft Fabric server with Geyser + Floodgate (Bedrock cross-play) and
@@ -102,6 +102,9 @@ schema:
   bedrock_port: "int(1,65535)"
   geyser_motd: str
   floodgate_enabled: bool
+  viaversion_enabled: bool
+  viabackwards_enabled: bool
+  viarewind_enabled: bool
   mod_lithium: bool
   mod_ferritecore: bool
   mod_krypton: bool

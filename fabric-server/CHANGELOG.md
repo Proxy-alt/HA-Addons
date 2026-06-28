@@ -1,3 +1,9 @@
+## 1.1.2
+
+### Added
+
+- Fix ViaFabric schema validation
+- Add ViaFabric tests
 
 ## 1.1.1
 

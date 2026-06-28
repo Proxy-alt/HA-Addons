@@ -206,6 +206,88 @@ use_curl_mock() {
 }
 
 # ---------------------------------------------------------------------------
+# ViaVersion / ViaFabric protocol mods (offline curl mock)
+# ---------------------------------------------------------------------------
+
+# Toggle the three Via* options ($1 $2 $3 = viaversion viabackwards viarewind)
+# on top of the loaded fixture and repoint OPTIONS at the result.
+set_via_options() {
+    jq --argjson v "$1" --argjson b "$2" --argjson r "$3" \
+        '.viaversion_enabled = $v | .viabackwards_enabled = $b | .viarewind_enabled = $r' \
+        "${OPTIONS}" > "${TEST_TMPDIR}/via_opts.json"
+    OPTIONS="${TEST_TMPDIR}/via_opts.json"
+}
+
+@test "sync_mods installs viafabric when ViaVersion is enabled" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    set_via_options true false false
+    use_curl_mock
+    MC_VERSION="1.21.4"
+    sync_mods
+    grep -q '^viafabric.jar$' "${MANAGED_FILE}"
+    ! grep -q '^viabackwards.jar$' "${MANAGED_FILE}"
+    ! grep -q '^viarewind.jar$' "${MANAGED_FILE}"
+}
+
+@test "sync_mods installs viabackwards alongside viafabric" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    set_via_options true true false
+    use_curl_mock
+    MC_VERSION="1.21.4"
+    sync_mods
+    grep -q '^viafabric.jar$' "${MANAGED_FILE}"
+    grep -q '^viabackwards.jar$' "${MANAGED_FILE}"
+    ! grep -q '^viarewind.jar$' "${MANAGED_FILE}"
+}
+
+@test "sync_mods installs the full via chain when all three are enabled" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    set_via_options true true true
+    use_curl_mock
+    MC_VERSION="1.21.4"
+    sync_mods
+    grep -q '^viafabric.jar$' "${MANAGED_FILE}"
+    grep -q '^viabackwards.jar$' "${MANAGED_FILE}"
+    grep -q '^viarewind.jar$' "${MANAGED_FILE}"
+}
+
+@test "sync_mods does not install via mods when ViaVersion is disabled" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    set_via_options false false false
+    use_curl_mock
+    MC_VERSION="1.21.4"
+    sync_mods
+    ! grep -q '^viafabric.jar$' "${MANAGED_FILE}"
+    ! grep -q '^viabackwards.jar$' "${MANAGED_FILE}"
+    ! grep -q '^viarewind.jar$' "${MANAGED_FILE}"
+}
+
+@test "sync_mods warns and skips viarewind when viabackwards is missing" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    set_via_options true false true
+    use_curl_mock
+    MC_VERSION="1.21.4"
+    run sync_mods
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"ViaRewind requires ViaBackwards"* ]]
+    grep -q '^viafabric.jar$' "${MANAGED_FILE}"
+    ! grep -q '^viarewind.jar$' "${MANAGED_FILE}"
+}
+
+@test "sync_mods warns and skips via mods when ViaVersion is missing" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    set_via_options false true true
+    use_curl_mock
+    MC_VERSION="1.21.4"
+    run sync_mods
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"require ViaVersion"* ]]
+    ! grep -q '^viafabric.jar$' "${MANAGED_FILE}"
+    ! grep -q '^viabackwards.jar$' "${MANAGED_FILE}"
+    ! grep -q '^viarewind.jar$' "${MANAGED_FILE}"
+}
+
+# ---------------------------------------------------------------------------
 # ops.json (offline curl mock for Mojang)
 # ---------------------------------------------------------------------------
 

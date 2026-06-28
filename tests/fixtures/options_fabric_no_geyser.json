@@ -35,5 +35,8 @@
   "mod_c2me": false,
   "mod_servercore": false,
   "extra_mods": [],
-  "whitelist": []
+  "whitelist": [],
+  "viaversion_enabled": false,
+  "viabackwards_enabled": false,
+  "viarewind_enabled": false
 }
