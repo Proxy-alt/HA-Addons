@@ -20,7 +20,7 @@ if [[ -z "${COMPANION_KEY}" ]]; then
     bashio::log.fatal "configured in the Invidious add-on."
     exit 1
 fi
-export COMPANION_KEY
+export SERVER_SECRET_KEY="${COMPANION_KEY}"
 
 # ---------------------------------------------------------------------------
 # Performance

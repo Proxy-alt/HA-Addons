@@ -56,7 +56,7 @@ teardown() {
 # Environment variable exports
 # ---------------------------------------------------------------------------
 
-@test "COMPANION_KEY is exported from options" {
+@test "SERVER_SECRET_KEY is exported from companion_key option" {
     local env_file="${TEST_TMPDIR}/companion_env.txt"
     setup_env_capture "${env_file}"
 
@@ -68,7 +68,22 @@ teardown() {
         bash "${COMPANION_SCRIPT}" 2>/dev/null
 
     [ -f "${env_file}" ]
-    grep -q 'COMPANION_KEY=secret1234567890' "${env_file}"
+    grep -q 'SERVER_SECRET_KEY=secret1234567890' "${env_file}"
+}
+
+@test "COMPANION_KEY is not leaked into environment" {
+    local env_file="${TEST_TMPDIR}/companion_env.txt"
+    setup_env_capture "${env_file}"
+
+    env -i \
+        BASHIO_LIB="${MOCK_BASHIO}" \
+        OPTIONS="${FIXTURES_DIR}/companion_options.json" \
+        TINI_BIN="${TINI_BIN}" \
+        COMPANION_BIN="${COMPANION_BIN}" \
+        bash "${COMPANION_SCRIPT}" 2>/dev/null
+
+    [ -f "${env_file}" ]
+    ! grep -q '^COMPANION_KEY=' "${env_file}"
 }
 
 @test "BACKEND_VIDEO_DOWNLOAD_THREADS is exported from download_threads option" {
