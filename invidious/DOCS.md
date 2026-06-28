@@ -43,9 +43,11 @@ most likely to want to change.
 ### HMAC Key
 
 Leave this **blank** — the add-on generates a random 64-character key on first
-start and saves it to persistent storage. You only need to set this manually if
-you want to copy an existing key from another Invidious instance (for example,
-when migrating).
+start and saves it to persistent storage. The generated key is also written
+back into this option through the Supervisor API, so it becomes visible in the
+add-on configuration and is reused as the canonical key going forward. You only
+need to set this manually if you want to copy an existing key from another
+Invidious instance (for example, when migrating).
 
 > **Warning:** Changing the HMAC key after users have logged in will invalidate
 > all existing sessions and PubSubHub subscriptions.

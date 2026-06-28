@@ -1,0 +1,115 @@
+name: Fabric Server
+version: "1.1.0"
+slug: fabric_server
+description: >-
+  Minecraft Fabric server with Geyser + Floodgate (Bedrock cross-play) and
+  performance mods, all configurable from the Home Assistant UI.
+url: https://fabricmc.net/
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+host_network: true
+# hassio_api lets run.sh sync in-game changes (e.g. /op, /whitelist) back to the
+# add-on options via the Supervisor API (POST /addons/self/options) so the UI
+# reflects what players changed at runtime.
+hassio_api: true
+map:
+  - type: data
+    read_only: false
+options:
+  # ── Required ───────────────────────────────────────────────────────────────
+  accept_eula: false
+  # ── Versions ───────────────────────────────────────────────────────────────
+  minecraft_version: "latest"
+  fabric_loader_version: "latest"
+  # ── Memory & JVM ───────────────────────────────────────────────────────────
+  max_memory: "2G"
+  min_memory: "1G"
+  java_args: ""
+  # ── Server properties ──────────────────────────────────────────────────────
+  motd: "A Fabric server, powered by Home Assistant"
+  gamemode: "survival"
+  difficulty: "normal"
+  hardcore: false
+  max_players: 20
+  online_mode: true
+  white_list: false
+  pvp: true
+  allow_nether: true
+  allow_flight: false
+  spawn_protection: 16
+  view_distance: 10
+  simulation_distance: 10
+  level_name: "world"
+  level_seed: ""
+  level_type: "minecraft:normal"
+  enable_command_block: false
+  op_permission_level: 4
+  player_idle_timeout: 0
+  ops: []
+  whitelist: []
+  # ── Bedrock cross-play (Geyser + Floodgate) ────────────────────────────────
+  geyser_enabled: true
+  bedrock_port: 19132
+  geyser_motd: "Fabric Server"
+  floodgate_enabled: true
+  # ── Optimization mods ──────────────────────────────────────────────────────
+  mod_lithium: true
+  mod_ferritecore: true
+  mod_krypton: true
+  mod_c2me: false
+  mod_servercore: false
+  # ── Extra mods (Modrinth project slugs) ────────────────────────────────────
+  extra_mods: []
+schema:
+  accept_eula: bool
+  minecraft_version: str
+  fabric_loader_version: str
+  max_memory: "match(^[0-9]+[KkMmGg]?$)"
+  min_memory: "match(^[0-9]+[KkMmGg]?$)"
+  java_args: str
+  motd: str
+  gamemode: "list(survival|creative|adventure|spectator)"
+  difficulty: "list(peaceful|easy|normal|hard)"
+  hardcore: bool
+  max_players: "int(1,)"
+  online_mode: bool
+  white_list: bool
+  pvp: bool
+  allow_nether: bool
+  allow_flight: bool
+  spawn_protection: "int(0,)"
+  view_distance: "int(3,32)"
+  simulation_distance: "int(3,32)"
+  level_name: str
+  level_seed: str
+  level_type: str
+  enable_command_block: bool
+  op_permission_level: "int(1,4)"
+  player_idle_timeout: "int(0,)"
+  ops:
+    - str
+  whitelist:
+    - str
+  geyser_enabled: bool
+  bedrock_port: "int(1,65535)"
+  geyser_motd: str
+  floodgate_enabled: bool
+  mod_lithium: bool
+  mod_ferritecore: bool
+  mod_krypton: bool
+  mod_c2me: bool
+  mod_servercore: bool
+  extra_mods:
+    - str
+ports:
+  25565/tcp: 25565
+  19132/udp: 19132
+ports_description:
+  25565/tcp: Minecraft Java Edition
+  19132/udp: Minecraft Bedrock Edition (Geyser)
+panel_icon: mdi:minecraft
+panel_title: Fabric Server

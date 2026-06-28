@@ -12,6 +12,7 @@ INVIDIOUS_BIN="/opt/invidious/invidious"
 CONFIG_DIR="/data/invidious"
 CONFIG_FILE="/opt/invidious/config/config.yml"
 OPTIONS="/data/options.json"
+SUPERVISOR_API="${SUPERVISOR_API:-http://supervisor}"
 
 PG_PID=""
 INV_PID=""
@@ -45,6 +46,45 @@ yaml_bool_or_str() {
         printf '%s' "${val}"
     else
         printf '"%s"' "${val}"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Persist a derived option back to the add-on configuration.
+#
+# The Supervisor's POST /addons/self/options endpoint *replaces* the stored
+# options, so we read the current effective options from ${OPTIONS}, set the
+# one key, and send the whole object back. The change then shows up in the
+# Home Assistant UI and survives restarts.
+#
+# No-op (with a warning) when SUPERVISOR_TOKEN is unset — e.g. during tests or
+# when the API is unreachable — so a sync failure never blocks startup.
+# ---------------------------------------------------------------------------
+persist_option() {
+    local key="$1" value="$2"
+
+    # Already stored — nothing to write.
+    [[ "$(opt "${key}")" == "${value}" ]] && return 0
+
+    if [[ -z "${SUPERVISOR_TOKEN:-}" ]]; then
+        bashio::log.warning "SUPERVISOR_TOKEN not set; cannot save '${key}' to the add-on options."
+        return 0
+    fi
+
+    local payload
+    payload="$(jq -c --arg k "${key}" --arg v "${value}" '{options: (. + {($k): $v})}' "${OPTIONS}")" || {
+        bashio::log.warning "Could not build options payload for '${key}'; skipping write-back."
+        return 0
+    }
+
+    if curl -fsSL -X POST \
+        -H "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "${payload}" \
+        "${SUPERVISOR_API}/addons/self/options" >/dev/null 2>&1; then
+        bashio::log.info "Saved '${key}' to the add-on options."
+    else
+        bashio::log.warning "Failed to save '${key}' via the Supervisor API."
     fi
 }
 
@@ -382,6 +422,9 @@ main() {
     # Invidious — resolve HMAC key and write configuration
     # ---------------------------------------------------------------------------
     resolve_hmac_key
+    # Reflect an auto-generated key back into the add-on options so it is
+    # visible in the UI and reused as the canonical source going forward.
+    persist_option hmac_key "${HMAC_KEY}"
     write_invidious_config
 
     # ---------------------------------------------------------------------------

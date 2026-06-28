@@ -1,3 +1,10 @@
+## 2024.12.1
+
+### Added
+
+- The auto-generated HMAC key is now written back to the add-on options via the
+  Supervisor API, so it is visible in the UI and reused as the canonical key.
+
 ## 2024.12.0
 
 ### Added

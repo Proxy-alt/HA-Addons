@@ -1,0 +1,176 @@
+configuration:
+  # ── Required ───────────────────────────────────────────────────────────────
+  accept_eula:
+    name: Accept Minecraft EULA
+    description: >-
+      You must accept the Minecraft End User License Agreement
+      (https://aka.ms/MinecraftEULA) to run a server. The add-on refuses to
+      start until this is enabled.
+
+  # ── Versions ───────────────────────────────────────────────────────────────
+  minecraft_version:
+    name: Minecraft Version
+    description: >-
+      Minecraft version to run, e.g. "1.21.4". Use "latest" to track the newest
+      stable release. Note: the very newest version may not yet have Geyser or
+      every optimization mod available — unavailable mods are skipped with a
+      warning in the log.
+  fabric_loader_version:
+    name: Fabric Loader Version
+    description: >-
+      Fabric loader version. Use "latest" for the newest stable loader (almost
+      always what you want).
+
+  # ── Memory & JVM ───────────────────────────────────────────────────────────
+  max_memory:
+    name: Maximum Memory
+    description: >-
+      Maximum Java heap size (-Xmx), e.g. "2G" or "2048M". Leave headroom for
+      the host and other add-ons; do not assign all of your RAM here.
+  min_memory:
+    name: Minimum Memory
+    description: >-
+      Initial Java heap size (-Xms), e.g. "1G". Often set equal to the maximum
+      for a server.
+  java_args:
+    name: Extra Java Arguments
+    description: >-
+      Additional JVM arguments appended after the built-in tuning flags,
+      space-separated. Usually left empty.
+
+  # ── Server properties ──────────────────────────────────────────────────────
+  motd:
+    name: MOTD
+    description: Message shown in the server list for Java Edition clients.
+  gamemode:
+    name: Default Game Mode
+    description: Default game mode for new players.
+  difficulty:
+    name: Difficulty
+    description: World difficulty.
+  hardcore:
+    name: Hardcore
+    description: >-
+      Hardcore mode — difficulty is locked to hard and death is permanent
+      (players are set to spectator).
+  max_players:
+    name: Max Players
+    description: Maximum number of simultaneous players.
+  online_mode:
+    name: Online Mode
+    description: >-
+      Verify Java players against Mojang's authentication servers. Keep enabled.
+      Bedrock players joining through Floodgate are authenticated separately and
+      are unaffected by this setting.
+  white_list:
+    name: Whitelist
+    description: >-
+      Restrict access to whitelisted players only (also enforces the whitelist
+      on already-connected players).
+  pvp:
+    name: PvP
+    description: Allow players to damage each other.
+  allow_nether:
+    name: Allow Nether
+    description: Allow players to travel to the Nether.
+  allow_flight:
+    name: Allow Flight
+    description: >-
+      Allow flight-enabling mods/items in survival. When disabled, the server
+      may kick players who appear to be flying.
+  spawn_protection:
+    name: Spawn Protection Radius
+    description: >-
+      Radius (in blocks) around spawn that non-operators cannot modify. Set 0 to
+      disable.
+  view_distance:
+    name: View Distance
+    description: Server-side render distance in chunks (3-32).
+  simulation_distance:
+    name: Simulation Distance
+    description: Distance in chunks within which the world is actively ticked (3-32).
+  level_name:
+    name: World Name
+    description: Folder name for the world. Change this to start a fresh world.
+  level_seed:
+    name: World Seed
+    description: Seed for world generation. Leave empty for a random seed.
+  level_type:
+    name: World Type
+    description: >-
+      World generator, e.g. "minecraft:normal", "minecraft:flat",
+      "minecraft:large_biomes", or "minecraft:amplified".
+  enable_command_block:
+    name: Enable Command Blocks
+    description: Allow command blocks to function.
+  op_permission_level:
+    name: Operator Permission Level
+    description: >-
+      Permission level (1-4) granted to operators. 4 grants full access
+      including server-management commands.
+  player_idle_timeout:
+    name: Idle Timeout (minutes)
+    description: >-
+      Kick players after this many minutes of inactivity. Set 0 to never kick
+      for idling.
+  ops:
+    name: Operators
+    description: >-
+      Java Edition usernames to grant operator status. Usernames are resolved to
+      UUIDs via Mojang at startup; names that cannot be resolved are skipped.
+      Players you /op or /deop in-game are synced back to this list.
+  whitelist:
+    name: Whitelisted Players
+    description: >-
+      Java Edition usernames allowed when the whitelist is enabled. Usernames are
+      resolved to UUIDs via Mojang at startup. Players you add or remove in-game
+      with /whitelist are synced back to this list. Enable "Whitelist" above to
+      actually enforce it.
+
+  # ── Bedrock cross-play (Geyser + Floodgate) ────────────────────────────────
+  geyser_enabled:
+    name: Enable Geyser (Bedrock cross-play)
+    description: >-
+      Install GeyserMC so Minecraft Bedrock Edition clients (mobile, console,
+      Windows 10/11) can join this Java server.
+  bedrock_port:
+    name: Bedrock Port
+    description: >-
+      UDP port Geyser listens on for Bedrock clients (default 19132, the
+      standard Bedrock port).
+  geyser_motd:
+    name: Bedrock MOTD
+    description: Server name shown to Bedrock clients in the Geyser server listing.
+  floodgate_enabled:
+    name: Enable Floodgate
+    description: >-
+      Install Floodgate so Bedrock players can join without owning a Java
+      Edition account. Requires Geyser. When enabled, Geyser's auth type is set
+      to "floodgate" automatically.
+
+  # ── Optimization mods ──────────────────────────────────────────────────────
+  mod_lithium:
+    name: Lithium
+    description: General-purpose server optimization mod (no behaviour changes).
+  mod_ferritecore:
+    name: FerriteCore
+    description: Reduces the server's memory usage.
+  mod_krypton:
+    name: Krypton
+    description: Optimizes the Minecraft networking stack.
+  mod_c2me:
+    name: C2ME
+    description: >-
+      Concurrent Chunk Management Engine — parallelizes chunk loading,
+      generation, and saving. Helps most on multi-core hosts.
+  mod_servercore:
+    name: ServerCore
+    description: Adds dynamic performance optimizations aimed at server tick rate.
+
+  # ── Extra mods ─────────────────────────────────────────────────────────────
+  extra_mods:
+    name: Extra Mods
+    description: >-
+      Additional Modrinth project slugs (the last path segment of a Modrinth
+      URL, e.g. "fabric-api" or "carpet") to install. The newest Fabric build
+      matching your Minecraft version is downloaded for each.

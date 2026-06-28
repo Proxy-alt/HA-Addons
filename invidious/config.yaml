@@ -1,5 +1,5 @@
 name: Invidious
-version: "2024.12.0"
+version: "2024.12.1"
 slug: invidious
 description: >-
   Privacy-respecting YouTube frontend. Watch YouTube videos without ads,
@@ -12,6 +12,10 @@ startup: application
 boot: auto
 init: false
 host_network: true
+# hassio_api lets run.sh write the auto-generated HMAC key back to the add-on
+# options via the Supervisor API (POST /addons/self/options) so it shows up in
+# the UI and survives restarts.
+hassio_api: true
 map:
   - type: data
     read_only: false
