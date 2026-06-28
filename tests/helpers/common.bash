@@ -67,10 +67,10 @@ load_fabric_run() {
 }
 
 # Offline curl replacement for fabric-server tests. Routes by URL:
-#   * Modrinth version queries → one canned version, except slugs listed in
-#     ${FABRIC_MOCK_EMPTY} (space-separated) which return an empty array.
-#   * Mojang profile lookups   → a fixed UUID.
-#   * Any download (-o <dest>) → writes a dummy file to <dest>.
+#  * Modrinth version queries → one canned version, except slugs listed in
+#    ${FABRIC_MOCK_EMPTY} (space-separated) which return an empty array.
+#  * Mojang profile lookups   → a fixed UUID.
+#  * Any download (-o <dest>) → writes a dummy file to <dest>.
 # Define `curl() { fabric_mock_curl "$@"; }` in a test to activate it.
 fabric_mock_curl() {
     local out="" url="" prev=""

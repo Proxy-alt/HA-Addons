@@ -1,5 +1,5 @@
 configuration:
-  # ── Authentication ────────────────────────────────────────────────────────
+  # Authentication
   companion_key:
     name: Companion API Key
     description: >-
@@ -7,7 +7,7 @@ configuration:
       Invidious Companion. Must be exactly 16 characters. This value must match
       the Companion API Key set in the Invidious add-on.
 
-  # ── Performance ───────────────────────────────────────────────────────────
+  # Performance
   download_threads:
     name: Download Threads
     description: >-
@@ -15,7 +15,7 @@ configuration:
       Increasing this value allows more concurrent stream requests but uses
       more CPU and memory. Default: 4.
 
-  # ── Outbound proxy ────────────────────────────────────────────────────────
+  # Outbound proxy
   http_proxy:
     name: HTTP Proxy URL
     description: >-

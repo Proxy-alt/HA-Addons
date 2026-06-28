@@ -16,20 +16,20 @@ map:
   - type: data
     read_only: false
 options:
-  # ── Authentication ────────────────────────────────────────────────────────
+  # Authentication
   companion_key: ""
-  # ── Performance ──────────────────────────────────────────────────────────
+  # Performance
   download_threads: 4
-  # ── Outbound proxy ───────────────────────────────────────────────────────
+  # Outbound proxy
   http_proxy: ""
   socks_proxy_host: ""
   socks_proxy_port: 1080
 schema:
-  # ── Authentication ────────────────────────────────────────────────────────
+  # Authentication
   companion_key: password
-  # ── Performance ──────────────────────────────────────────────────────────
+  # Performance
   download_threads: int
-  # ── Outbound proxy ───────────────────────────────────────────────────────
+  # Outbound proxy
   http_proxy: str
   socks_proxy_host: str
   socks_proxy_port: int

@@ -114,11 +114,11 @@ Supervised installs, so they communicate directly over `localhost`.
 Browser / client
       │
       ▼
- [Invidious :3000]  ──API calls──▶  YouTube API
+ [Invidious :3000]  API calls▶  YouTube API
       │
       │  stream redirect / proxy
       ▼
- [Companion :8282]  ──stream fetching──▶  YouTube CDN
+ [Companion :8282]  stream fetching▶  YouTube CDN
 ```
 
 If Companion is configured with a **Companion Public URL**, browsers fetch

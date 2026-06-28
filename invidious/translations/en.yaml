@@ -1,5 +1,5 @@
 configuration:
-  # ── Server ───────────────────────────────────────────────────────────────
+  # Server
   hmac_key:
     name: HMAC Key
     description: >-
@@ -36,7 +36,7 @@ configuration:
       Send a Strict-Transport-Security header. Requires the domain to be
       served exclusively over HTTPS.
 
-  # ── Network (outbound) ───────────────────────────────────────────────────
+  # Network (outbound)
   disable_proxy:
     name: Disable Proxy
     description: >-
@@ -82,14 +82,14 @@ configuration:
     name: HTTP Proxy Password
     description: Password for proxy authentication. Leave empty if not required.
 
-  # ── Logging ──────────────────────────────────────────────────────────────
+  # Logging
   log_level:
     name: Log Level
     description: >-
       Verbosity of the Invidious logs. Accepted values (least to most verbose):
       Off, Fatal, Error, Warn, Info, Debug, Trace, All. Default: Info.
 
-  # ── Features ─────────────────────────────────────────────────────────────
+  # Features
   popular_enabled:
     name: Enable Popular Tab
     description: >-
@@ -101,7 +101,7 @@ configuration:
       Expose instance statistics at /api/v1/stats (user count, version, etc.).
       Required for public instances registered on api.invidious.io.
 
-  # ── Users & accounts ─────────────────────────────────────────────────────
+  # Users & accounts
   registration_enabled:
     name: Allow Registration
     description: Allow new visitors to create local Invidious accounts.
@@ -126,7 +126,7 @@ configuration:
       Disable on large instances to reduce database writes and improve
       overall performance.
 
-  # ── Background jobs ──────────────────────────────────────────────────────
+  # Background jobs
   channel_threads:
     name: Channel Threads
     description: >-
@@ -156,7 +156,7 @@ configuration:
     name: Job: Refresh Feeds
     description: Enable the background job that updates RSS subscription feeds.
 
-  # ── Database ─────────────────────────────────────────────────────────────
+  # Database
   check_tables:
     name: Auto-check Database Tables
     description: >-
@@ -164,7 +164,7 @@ configuration:
       Keeps the database schema in sync without manual migrations.
       Recommended to leave enabled.
 
-  # ── Miscellaneous ────────────────────────────────────────────────────────
+  # Miscellaneous
   banner:
     name: Instance Banner
     description: >-
@@ -191,7 +191,7 @@ configuration:
       List of YouTube video IDs for which the download widget must be hidden
       to comply with DMCA takedown requests. Public instance operators only.
 
-  # ── Invidious Companion ──────────────────────────────────────────────────
+  # Invidious Companion
   companion_private_url:
     name: Companion Private URL
     description: >-
@@ -211,7 +211,7 @@ configuration:
       Invidious Companion. Must be exactly 16 characters. Required when
       Companion Private URL is set.
 
-  # ── Default user preferences ─────────────────────────────────────────────
+  # Default user preferences
   locale:
     name: Default Language
     description: >-

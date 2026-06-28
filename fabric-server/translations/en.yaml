@@ -1,5 +1,5 @@
 configuration:
-  # ── Required ───────────────────────────────────────────────────────────────
+  # Required
   accept_eula:
     name: Accept Minecraft EULA
     description: >-
@@ -7,7 +7,7 @@ configuration:
       (https://aka.ms/MinecraftEULA) to run a server. The add-on refuses to
       start until this is enabled.
 
-  # ── Versions ───────────────────────────────────────────────────────────────
+  # Versions
   minecraft_version:
     name: Minecraft Version
     description: >-
@@ -21,7 +21,7 @@ configuration:
       Fabric loader version. Use "latest" for the newest stable loader (almost
       always what you want).
 
-  # ── Memory & JVM ───────────────────────────────────────────────────────────
+  # Memory & JVM
   max_memory:
     name: Maximum Memory
     description: >-
@@ -38,7 +38,7 @@ configuration:
       Additional JVM arguments appended after the built-in tuning flags,
       space-separated. Usually left empty.
 
-  # ── Server properties ──────────────────────────────────────────────────────
+  # Server properties
   motd:
     name: MOTD
     description: Message shown in the server list for Java Edition clients.
@@ -127,7 +127,7 @@ configuration:
       with /whitelist are synced back to this list. Enable "Whitelist" above to
       actually enforce it.
 
-  # ── Bedrock cross-play (Geyser + Floodgate) ────────────────────────────────
+  # Bedrock cross-play (Geyser + Floodgate)
   geyser_enabled:
     name: Enable Geyser (Bedrock cross-play)
     description: >-
@@ -147,8 +147,20 @@ configuration:
       Install Floodgate so Bedrock players can join without owning a Java
       Edition account. Requires Geyser. When enabled, Geyser's auth type is set
       to "floodgate" automatically.
-
-  # ── Optimization mods ──────────────────────────────────────────────────────
+  # Protocol version compatibility
+  viaversion_enabled:
+    name: Enable ViaVersion
+    description: >-
+      Allows newer Minecraft versions to connect to the server.
+  viabackwards_enabled:
+    name: Enable ViaBackwards
+    description: >-
+      Allows 1.17 and newer Minecraft versions to connect to the server. Requires ViaVersion.
+  viarewind_enabled:
+    name: Enable ViaRewind
+    description: >-
+      Allows 1.7 and newer Minecraft versions to connect to the server (Significant performance impact). Requires ViaVersion.
+  # Optimization mods
   mod_lithium:
     name: Lithium
     description: General-purpose server optimization mod (no behaviour changes).
@@ -167,7 +179,7 @@ configuration:
     name: ServerCore
     description: Adds dynamic performance optimizations aimed at server tick rate.
 
-  # ── Extra mods ─────────────────────────────────────────────────────────────
+  # Extra mods
   extra_mods:
     name: Extra Mods
     description: >-

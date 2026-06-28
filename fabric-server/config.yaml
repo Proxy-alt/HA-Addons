@@ -1,5 +1,5 @@
 name: Fabric Server
-version: "1.1.0"
+version: "1.1.1"
 slug: fabric_server
 description: >-
   Minecraft Fabric server with Geyser + Floodgate (Bedrock cross-play) and
@@ -20,16 +20,16 @@ map:
   - type: data
     read_only: false
 options:
-  # ── Required ───────────────────────────────────────────────────────────────
+  # Required
   accept_eula: false
-  # ── Versions ───────────────────────────────────────────────────────────────
+  # Versions
   minecraft_version: "latest"
   fabric_loader_version: "latest"
-  # ── Memory & JVM ───────────────────────────────────────────────────────────
+  # Memory & JVM
   max_memory: "2G"
   min_memory: "1G"
   java_args: ""
-  # ── Server properties ──────────────────────────────────────────────────────
+  # Server properties
   motd: "A Fabric server, powered by Home Assistant"
   gamemode: "survival"
   difficulty: "normal"
@@ -51,18 +51,22 @@ options:
   player_idle_timeout: 0
   ops: []
   whitelist: []
-  # ── Bedrock cross-play (Geyser + Floodgate) ────────────────────────────────
+  # Bedrock cross-play (Geyser + Floodgate)
   geyser_enabled: true
   bedrock_port: 19132
   geyser_motd: "Fabric Server"
   floodgate_enabled: true
-  # ── Optimization mods ──────────────────────────────────────────────────────
+  # Version compatibility
+  viaversion_enabled: false
+  viabackwards_enabled: false
+  viarewind_enabled: false
+  # Optimization mods
   mod_lithium: true
   mod_ferritecore: true
   mod_krypton: true
   mod_c2me: false
   mod_servercore: false
-  # ── Extra mods (Modrinth project slugs) ────────────────────────────────────
+  # Extra mods (Modrinth project slugs)
   extra_mods: []
 schema:
   accept_eula: bool

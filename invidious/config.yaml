@@ -20,14 +20,14 @@ map:
   - type: data
     read_only: false
 options:
-  # ── Server ─────────────────────────────────────────────────────────────────
+  # Server
   hmac_key: ""
   domain: ""
   external_port: 0
   alternative_domains: []
   https_only: false
   hsts: true
-  # ── Network (outbound) ─────────────────────────────────────────────────────
+  # Network (outbound)
   disable_proxy: "false"
   pool_size: 100
   force_resolve: ""
@@ -37,18 +37,18 @@ options:
   http_proxy_port: 3128
   http_proxy_user: ""
   http_proxy_password: ""
-  # ── Logging ────────────────────────────────────────────────────────────────
+  # Logging
   log_level: "Info"
-  # ── Features ───────────────────────────────────────────────────────────────
+  # Features
   popular_enabled: true
   statistics_enabled: false
-  # ── Users & accounts ───────────────────────────────────────────────────────
+  # Users & accounts
   registration_enabled: true
   login_enabled: true
   captcha_enabled: true
   admins: []
   enable_user_notifications: true
-  # ── Background jobs ────────────────────────────────────────────────────────
+  # Background jobs
   channel_threads: 1
   feed_threads: 1
   channel_refresh_interval: "30m"
@@ -56,19 +56,19 @@ options:
   jobs_clear_expired_items: true
   jobs_refresh_channels: true
   jobs_refresh_feeds: true
-  # ── Database ───────────────────────────────────────────────────────────────
+  # Database
   check_tables: true
-  # ── Miscellaneous ──────────────────────────────────────────────────────────
+  # Miscellaneous
   banner: ""
   use_pubsub_feeds: "false"
   cache_annotations: false
   playlist_length_limit: 500
   dmca_content: []
-  # ── Invidious Companion ────────────────────────────────────────────────────
+  # Invidious Companion
   companion_private_url: ""
   companion_public_url: ""
   companion_key: ""
-  # ── Default user preferences ───────────────────────────────────────────────
+  # Default user preferences
   locale: "en-US"
   region: "US"
   dark_mode: "auto"
@@ -110,7 +110,7 @@ options:
   caption_2: ""
   caption_3: ""
 schema:
-  # ── Server ─────────────────────────────────────────────────────────────────
+  # Server
   hmac_key: str
   domain: str
   external_port: int
@@ -118,7 +118,7 @@ schema:
     - str
   https_only: bool
   hsts: bool
-  # ── Network (outbound) ─────────────────────────────────────────────────────
+  # Network (outbound)
   disable_proxy: str
   pool_size: int
   force_resolve: str
@@ -128,19 +128,19 @@ schema:
   http_proxy_port: int
   http_proxy_user: str
   http_proxy_password: password
-  # ── Logging ────────────────────────────────────────────────────────────────
+  # Logging
   log_level: str
-  # ── Features ───────────────────────────────────────────────────────────────
+  # Features
   popular_enabled: bool
   statistics_enabled: bool
-  # ── Users & accounts ───────────────────────────────────────────────────────
+  # Users & accounts
   registration_enabled: bool
   login_enabled: bool
   captcha_enabled: bool
   admins:
     - str
   enable_user_notifications: bool
-  # ── Background jobs ────────────────────────────────────────────────────────
+  # Background jobs
   channel_threads: int
   feed_threads: int
   channel_refresh_interval: str
@@ -148,20 +148,20 @@ schema:
   jobs_clear_expired_items: bool
   jobs_refresh_channels: bool
   jobs_refresh_feeds: bool
-  # ── Database ───────────────────────────────────────────────────────────────
+  # Database
   check_tables: bool
-  # ── Miscellaneous ──────────────────────────────────────────────────────────
+  # Miscellaneous
   banner: str
   use_pubsub_feeds: str
   cache_annotations: bool
   playlist_length_limit: int
   dmca_content:
     - str
-  # ── Invidious Companion ────────────────────────────────────────────────────
+  # Invidious Companion
   companion_private_url: str
   companion_public_url: str
   companion_key: password
-  # ── Default user preferences ───────────────────────────────────────────────
+  # Default user preferences
   locale: str
   region: str
   dark_mode: str

@@ -169,6 +169,29 @@ sync_mods() {
     [[ "$(opt geyser_enabled)" == "true" ]]    && slugs+=("geyser")
     [[ "$(opt floodgate_enabled)" == "true" ]] && slugs+=("floodgate")
 
+    # Via* Protocol Dependency Chain
+    local viaversion=$(opt viaversion_enabled)
+    local viabackwards=$(opt viabackwards_enabled)
+    local viarewind=$(opt viarewind_enabled)
+
+    if [[ "$viaversion" == "true" ]]; then
+        slugs+=("viafabric")
+
+        if [[ "$viabackwards" == "true" ]]; then
+            slugs+=("viabackwards")
+
+            if [[ "$viarewind" == "true" ]]; then
+                slugs+=("viarewind")
+            fi
+        elif [[ "$viarewind" == "true" ]]; then
+            # ViaRewind is enabled, but ViaBackwards is missing
+            bashio::log.fatal "ViaRewind requires ViaBackwards to be enabled."
+        fi
+    elif [[ "$viabackwards" == "true" || "$viarewind" == "true" ]]; then
+        # ViaVersion is missing, but addons are enabled
+        bashio::log.fatal "ViaBackwards and ViaRewind require ViaVersion to be enabled."
+    fi
+
     while IFS= read -r s; do
         [[ -n "${s}" ]] && slugs+=("${s}")
     done < <(jq -r '.extra_mods[]?' "${OPTIONS}")
@@ -329,9 +352,9 @@ apply_whitelist() {
 # ---------------------------------------------------------------------------
 
 # Three-way set merge of a list option against the live server file.
-#   $1  option key in options.json (a list of strings)
-#   $2  baseline file recording the previously synced set
-#   stdin: the live names, one per line
+#  $1  option key in options.json (a list of strings)
+#  $2  baseline file recording the previously synced set
+#  stdin: the live names, one per line
 # Echoes the merged set as a JSON array and refreshes the baseline.
 merge_list() {
     local key="$1" baseline="$2"
@@ -386,14 +409,14 @@ sync_runtime_config() {
     local updated; updated="$(cat "${OPTIONS}")"
     local live merged
 
-    # ── Operators (ops.json ⇆ ops) ──────────────────────────────────────────
+    # Operators (ops.json ⇆ ops)
     live=""
     [[ -f "${SERVER_DIR}/ops.json" ]] && \
         live="$(jq -r '.[].name? // empty' "${SERVER_DIR}/ops.json" 2>/dev/null || true)"
     merged="$(printf '%s\n' "${live}" | merge_list ops "${OPS_BASELINE}")"
     updated="$(printf '%s' "${updated}" | jq --argjson a "${merged}" '.ops = $a')"
 
-    # ── Whitelist (whitelist.json ⇆ whitelist) ───────────────────────────────
+    # Whitelist (whitelist.json ⇆ whitelist)
     live=""
     [[ -f "${SERVER_DIR}/whitelist.json" ]] && \
         live="$(jq -r '.[].name? // empty' "${SERVER_DIR}/whitelist.json" 2>/dev/null || true)"

@@ -1,3 +1,10 @@
+
+## 1.1.1
+
+### Added
+
+- **ViaFabric** support — viafabric, viabackwards, viarewind
+
 ## 1.1.0
 
 ### Added
