@@ -156,7 +156,7 @@ To connect it, install the **Invidious Companion** add-on from this same reposit
 
 | Option | Value |
 |---|---|
-| Companion Private URL | Internal URL Invidious uses to reach Companion, e.g. `http://companion:8282/companion` |
+| Companion Private URL | Internal URL Invidious uses to reach Companion, e.g. `http://localhost:8282/companion` |
 | Companion Public URL | *(Optional)* Public URL browsers use to fetch streams directly from Companion. Leave blank to proxy through Invidious. |
 | Companion API Key | Shared 16-character secret — must match the key configured in Companion. |
 

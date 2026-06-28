@@ -11,6 +11,7 @@ arch:
 startup: application
 boot: auto
 init: false
+host_network: true
 map:
   - type: data
     read_only: false
