@@ -313,6 +313,30 @@ print(type(val).__name__)
     [ "${feed_menu_type}" = "list" ]
 }
 
+@test "speed is always written with a decimal point (jq 1.6 drops .0 from floats)" {
+    # Simulate the jq-1.6-on-Debian behaviour: options.json stores speed as the
+    # integer 1 rather than the float 1.0. Crystal's YAML parser requires a
+    # decimal point for Float64 fields and crashes on bare "1".
+    local opts="${TEST_TMPDIR}/opts_speed_int.json"
+    jq '.speed = 1' "${FIXTURES_DIR}/options_defaults.json" > "${opts}"
+    OPTIONS="${opts}"
+    write_invidious_config
+
+    # The written value must contain a decimal point
+    assert_file_matches '^  speed: [0-9]+\.[0-9]'
+
+    # PyYAML must parse it as a float, not an integer
+    local speed_type
+    speed_type="$(python3 -c "
+import yaml
+with open('${CONFIG_FILE}') as f:
+    cfg = yaml.safe_load(f)
+val = cfg['default_user_preferences']['speed']
+print(type(val).__name__)
+")"
+    [ "${speed_type}" = "float" ]
+}
+
 @test "captions are written as a 3-element list" {
     run_config_gen "${FIXTURES_DIR}/options_empty_feed_menu.json"
     assert_file_contains '  captions:'

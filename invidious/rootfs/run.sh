@@ -26,6 +26,17 @@ HMAC_KEY=""
 # rather than silently discarded the way jq's // empty operator behaves.
 opt() { jq -r --arg k "$1" '.[$k] | select(. != null)' "${OPTIONS}"; }
 
+# Read a float option and guarantee the output has a decimal point.
+# jq 1.6 (Debian 12) outputs integer-valued floats without a decimal
+# (e.g. 1.0 → "1"). Crystal's YAML parser rejects bare integers for
+# Float64 fields, so we must ensure "1" becomes "1.0".
+opt_float() {
+    local val
+    val="$(opt "$1")"
+    [[ "${val}" =~ ^-?[0-9]+$ ]] && val="${val}.0"
+    printf '%s' "${val}"
+}
+
 # Output a YAML value that can be a YAML boolean or quoted string.
 # Use for fields where Invidious accepts true/false OR a string keyword.
 yaml_bool_or_str() {
@@ -259,7 +270,7 @@ default_user_preferences:
   video_loop: $(opt video_loop)
   quality: "$(opt quality)"
   quality_dash: "$(opt quality_dash)"
-  speed: $(opt speed)
+  speed: $(opt_float speed)
   volume: $(opt volume)
   vr_mode: $(opt vr_mode)
   save_player_pos: $(opt save_player_pos)

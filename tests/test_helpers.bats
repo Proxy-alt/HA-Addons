@@ -75,6 +75,42 @@ teardown() {
 }
 
 # ---------------------------------------------------------------------------
+# opt_float()
+# ---------------------------------------------------------------------------
+
+@test "opt_float: integer-valued float gets .0 appended" {
+    # Simulate jq-1.6 on Debian returning "1" for JSON value 1.0
+    local opts="${TEST_TMPDIR}/opts_int_speed.json"
+    jq '.speed = 1' "${OPTIONS}" > "${opts}"
+    OPTIONS="${opts}"
+    result="$(opt_float speed)"
+    [ "${result}" = "1.0" ]
+}
+
+@test "opt_float: already-decimal float is passed through unchanged" {
+    result="$(opt_float speed)"
+    # default is 1.0; jq 1.7 outputs "1.0"
+    [[ "${result}" == *"."* ]]
+}
+
+@test "opt_float: non-integer float like 1.25 is passed through unchanged" {
+    local opts="${TEST_TMPDIR}/opts_speed.json"
+    jq '.speed = 1.25' "${OPTIONS}" > "${opts}"
+    OPTIONS="${opts}"
+    result="$(opt_float speed)"
+    [ "${result}" = "1.25" ]
+}
+
+@test "opt_float: negative integer gets .0 appended" {
+    local opts="${TEST_TMPDIR}/opts_neg.json"
+    # hypothetical negative speed
+    jq '.speed = -1' "${OPTIONS}" > "${opts}"
+    OPTIONS="${opts}"
+    result="$(opt_float speed)"
+    [ "${result}" = "-1.0" ]
+}
+
+# ---------------------------------------------------------------------------
 # yaml_bool_or_str()
 # ---------------------------------------------------------------------------
 
