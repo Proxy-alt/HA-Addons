@@ -6,18 +6,18 @@ load helpers/common
 PLAYIT_SCRIPT="${REPO_DIR}/playit/rootfs/run.sh"
 
 # ---------------------------------------------------------------------------
-# Helper: install a mock playit binary that dumps its environment to a file,
-# then run the playit script capturing output and status.
+# Helper: install a mock playitd binary that dumps its args to a file,
+# then run the playit script.
 # ---------------------------------------------------------------------------
-setup_env_capture() {
-    local env_file="$1"
+setup_arg_capture() {
+    local args_file="$1"
     local cap_bin="${TEST_TMPDIR}/cap_bin"
     mkdir -p "${cap_bin}"
 
-    printf '#!/bin/bash\nenv > "%s"\nexit 0\n' "${env_file}" > "${cap_bin}/playit"
-    chmod +x "${cap_bin}/playit"
+    printf '#!/bin/bash\necho "$@" > "%s"\nexit 0\n' "${args_file}" > "${cap_bin}/playitd"
+    chmod +x "${cap_bin}/playitd"
 
-    PLAYIT_BIN="${cap_bin}/playit"
+    PLAYITD_BIN="${cap_bin}/playitd"
 }
 
 setup() {
@@ -29,100 +29,112 @@ teardown() {
 }
 
 # ---------------------------------------------------------------------------
-# PLAYIT_SECRET export
+# Secret file generation
 # ---------------------------------------------------------------------------
 
-@test "PLAYIT_SECRET is exported when secret_key is set" {
-    local env_file="${TEST_TMPDIR}/playit_env.txt"
-    setup_env_capture "${env_file}"
+@test "secret TOML file is written when secret_key is configured" {
+    local args_file="${TEST_TMPDIR}/args.txt"
+    local secret_path="${TEST_TMPDIR}/playit.toml"
+    setup_arg_capture "${args_file}"
 
     env \
         BASHIO_LIB="${MOCK_BASHIO}" \
         OPTIONS="${FIXTURES_DIR}/playit_options.json" \
-        PLAYIT_BIN="${PLAYIT_BIN}" \
-        PLAYIT_HOME="${TEST_TMPDIR}/data" \
+        PLAYITD_BIN="${PLAYITD_BIN}" \
+        SECRET_PATH="${secret_path}" \
+        SOCKET_DIR="${TEST_TMPDIR}/run-playit" \
         bash "${PLAYIT_SCRIPT}" 2>/dev/null
 
-    [ -f "${env_file}" ]
-    grep -q 'PLAYIT_SECRET=test-secret-key-abc123' "${env_file}"
+    [ -f "${secret_path}" ]
+    grep -q 'secret_key = "test-secret-key-abc123"' "${secret_path}"
 }
 
-@test "PLAYIT_SECRET is not set when secret_key is empty" {
-    local env_file="${TEST_TMPDIR}/playit_env.txt"
-    setup_env_capture "${env_file}"
+@test "secret TOML file is not written when secret_key is empty" {
+    local args_file="${TEST_TMPDIR}/args.txt"
+    local secret_path="${TEST_TMPDIR}/playit.toml"
+    setup_arg_capture "${args_file}"
 
     env \
         BASHIO_LIB="${MOCK_BASHIO}" \
         OPTIONS="${FIXTURES_DIR}/playit_options_no_key.json" \
-        PLAYIT_BIN="${PLAYIT_BIN}" \
-        PLAYIT_HOME="${TEST_TMPDIR}/data" \
+        PLAYITD_BIN="${PLAYITD_BIN}" \
+        SECRET_PATH="${secret_path}" \
+        SOCKET_DIR="${TEST_TMPDIR}/run-playit" \
         bash "${PLAYIT_SCRIPT}" 2>/dev/null
 
-    [ -f "${env_file}" ]
-    ! grep -q '^PLAYIT_SECRET=' "${env_file}"
+    [ ! -f "${secret_path}" ]
 }
 
 # ---------------------------------------------------------------------------
-# HOME redirect for config persistence
+# Socket directory creation
 # ---------------------------------------------------------------------------
 
-@test "HOME is set to PLAYIT_HOME" {
-    local env_file="${TEST_TMPDIR}/playit_env.txt"
-    setup_env_capture "${env_file}"
+@test "socket directory is created before playitd is started" {
+    local args_file="${TEST_TMPDIR}/args.txt"
+    setup_arg_capture "${args_file}"
 
     env \
         BASHIO_LIB="${MOCK_BASHIO}" \
         OPTIONS="${FIXTURES_DIR}/playit_options.json" \
-        PLAYIT_BIN="${PLAYIT_BIN}" \
-        PLAYIT_HOME="${TEST_TMPDIR}/data" \
+        PLAYITD_BIN="${PLAYITD_BIN}" \
+        SECRET_PATH="${TEST_TMPDIR}/playit.toml" \
+        SOCKET_DIR="${TEST_TMPDIR}/run-playit" \
         bash "${PLAYIT_SCRIPT}" 2>/dev/null
 
-    [ -f "${env_file}" ]
-    grep -q "HOME=${TEST_TMPDIR}/data" "${env_file}"
+    [ -d "${TEST_TMPDIR}/run-playit" ]
 }
 
-@test "config directory is created under PLAYIT_HOME" {
-    local env_file="${TEST_TMPDIR}/playit_env.txt"
-    setup_env_capture "${env_file}"
+# ---------------------------------------------------------------------------
+# playitd invocation flags
+# ---------------------------------------------------------------------------
+
+@test "playitd is invoked with --secret-path flag" {
+    local args_file="${TEST_TMPDIR}/args.txt"
+    local secret_path="${TEST_TMPDIR}/playit.toml"
+    setup_arg_capture "${args_file}"
 
     env \
         BASHIO_LIB="${MOCK_BASHIO}" \
         OPTIONS="${FIXTURES_DIR}/playit_options.json" \
-        PLAYIT_BIN="${PLAYIT_BIN}" \
-        PLAYIT_HOME="${TEST_TMPDIR}/data" \
+        PLAYITD_BIN="${PLAYITD_BIN}" \
+        SECRET_PATH="${secret_path}" \
+        SOCKET_DIR="${TEST_TMPDIR}/run-playit" \
         bash "${PLAYIT_SCRIPT}" 2>/dev/null
 
-    [ -d "${TEST_TMPDIR}/data/.config/playit" ]
+    grep -q -- "--secret-path ${secret_path}" "${args_file}"
+}
+
+@test "playitd is invoked with --socket-path flag" {
+    local args_file="${TEST_TMPDIR}/args.txt"
+    setup_arg_capture "${args_file}"
+
+    env \
+        BASHIO_LIB="${MOCK_BASHIO}" \
+        OPTIONS="${FIXTURES_DIR}/playit_options.json" \
+        PLAYITD_BIN="${PLAYITD_BIN}" \
+        SECRET_PATH="${TEST_TMPDIR}/playit.toml" \
+        SOCKET_DIR="${TEST_TMPDIR}/run-playit" \
+        bash "${PLAYIT_SCRIPT}" 2>/dev/null
+
+    grep -q -- "--socket-path ${TEST_TMPDIR}/run-playit/playitd.sock" "${args_file}"
 }
 
 # ---------------------------------------------------------------------------
-# No-key warning (informational — does not exit with error)
+# No-key startup — daemon still runs (handles claim flow itself)
 # ---------------------------------------------------------------------------
 
-@test "playit runs without error when secret_key is empty" {
-    local env_file="${TEST_TMPDIR}/playit_env.txt"
-    setup_env_capture "${env_file}"
+@test "playitd is started even when secret_key is empty" {
+    local args_file="${TEST_TMPDIR}/args.txt"
+    setup_arg_capture "${args_file}"
 
     run env \
         BASHIO_LIB="${MOCK_BASHIO}" \
         OPTIONS="${FIXTURES_DIR}/playit_options_no_key.json" \
-        PLAYIT_BIN="${PLAYIT_BIN}" \
-        PLAYIT_HOME="${TEST_TMPDIR}/data" \
+        PLAYITD_BIN="${PLAYITD_BIN}" \
+        SECRET_PATH="${TEST_TMPDIR}/playit.toml" \
+        SOCKET_DIR="${TEST_TMPDIR}/run-playit" \
         bash "${PLAYIT_SCRIPT}" 2>/dev/null
 
     [ "${status}" -eq 0 ]
-}
-
-@test "playit binary is invoked even when secret_key is empty" {
-    local env_file="${TEST_TMPDIR}/playit_env.txt"
-    setup_env_capture "${env_file}"
-
-    env \
-        BASHIO_LIB="${MOCK_BASHIO}" \
-        OPTIONS="${FIXTURES_DIR}/playit_options_no_key.json" \
-        PLAYIT_BIN="${PLAYIT_BIN}" \
-        PLAYIT_HOME="${TEST_TMPDIR}/data" \
-        bash "${PLAYIT_SCRIPT}" 2>/dev/null
-
-    [ -f "${env_file}" ]
+    [ -f "${args_file}" ]
 }

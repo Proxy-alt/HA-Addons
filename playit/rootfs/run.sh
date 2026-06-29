@@ -11,27 +11,35 @@ OPTIONS="${OPTIONS:-/data/options.json}"
 opt() { jq -r --arg k "$1" '.[$k] | select(. != null)' "${OPTIONS}"; }
 
 # ---------------------------------------------------------------------------
-# Data directory — playit stores its config under $HOME/.config/playit/
-# Redirect HOME to the persistent data volume so config survives restarts.
+# Paths — both overridable for testing
 # ---------------------------------------------------------------------------
-export HOME="${PLAYIT_HOME:-/data}"
-mkdir -p "${HOME}/.config/playit"
+SECRET_PATH="${SECRET_PATH:-/data/playit.toml}"
+SOCKET_DIR="${SOCKET_DIR:-/run/playit}"
+SOCKET_PATH="${SOCKET_DIR}/playitd.sock"
+
+mkdir -p "${SOCKET_DIR}"
 
 # ---------------------------------------------------------------------------
-# Secret key — optional on first run; playit will print a claim URL if unset
+# Secret key — write TOML secret file when provided.
+# On first run with no key, playitd prints a claim URL to stdout; the user
+# claims the agent at app.playit.gg and playitd writes the secret itself.
+# The /data volume persists the file across restarts so re-claiming is not
+# needed after the initial setup.
 # ---------------------------------------------------------------------------
 SECRET_KEY="$(opt secret_key)"
 if [[ -n "${SECRET_KEY}" ]]; then
-    export PLAYIT_SECRET="${SECRET_KEY}"
-    bashio::log.info "Starting Playit.gg agent..."
+    printf 'secret_key = "%s"\n' "${SECRET_KEY}" > "${SECRET_PATH}"
+    bashio::log.info "Starting Playit.gg agent with configured secret key..."
 else
     bashio::log.warning "No secret key configured."
     bashio::log.warning "Playit.gg will print a claim URL — check the add-on Log tab."
-    bashio::log.warning "Visit the URL, claim this agent at app.playit.gg, then paste"
-    bashio::log.warning "the generated secret key into the add-on configuration and restart."
+    bashio::log.warning "Visit the URL to claim this agent at app.playit.gg."
+    bashio::log.warning "The secret is then saved automatically and persists across restarts."
 fi
 
 # ---------------------------------------------------------------------------
-# Start the playit agent
+# Start the playit daemon
 # ---------------------------------------------------------------------------
-exec "${PLAYIT_BIN:-/usr/local/bin/playit}"
+exec "${PLAYITD_BIN:-/usr/local/bin/playitd}" \
+    --secret-path "${SECRET_PATH}" \
+    --socket-path "${SOCKET_PATH}"
