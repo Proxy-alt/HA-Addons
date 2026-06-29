@@ -1,3 +1,9 @@
+## 0.1.1
+
+### Added
+
+- `host_network: true` to the add-on configuration to allow the agent to access the host network. Fixes issue with connecting to the host network.
+
 ## 0.1.0
 
 ### Added
