@@ -8,14 +8,19 @@ source "${BASHIO_LIB:-/usr/lib/bashio/bashio.sh}"
 # Paths / endpoints (overridable for tests)
 # ---------------------------------------------------------------------------
 OPTIONS="${OPTIONS:-/data/options.json}"
-SERVER_DIR="${SERVER_DIR:-/data/server}"
-# User-accessible add-on config folder (mapped to /addon_configs/<slug> on the
-# host). The Minecraft world lives here so users can manage or drop in their own.
+# Large files: Fabric launcher, mods, world data. Mounted from /share so users
+# can access it via Samba/File editor to add custom mods or back up worlds.
+SERVER_DIR="${SERVER_DIR:-/share/fabric_server}"
+# Config files: server.properties, ops.json, whitelist.json, eula.txt, mod
+# configs. Mounted from /addon_configs/<slug>; browseable via File editor.
+# Symlinks from SERVER_DIR point here so Minecraft finds them in its working dir.
 ADDON_CONFIG_DIR="${ADDON_CONFIG_DIR:-/config}"
+# Internal state: version markers, baselines, managed-mods list. Not user-facing.
+DATA_DIR="${DATA_DIR:-/data}"
 MODS_DIR="${SERVER_DIR}/mods"
-MANAGED_FILE="${SERVER_DIR}/.managed_mods"
+MANAGED_FILE="${DATA_DIR}/.managed_mods"
 LAUNCHER_JAR="${SERVER_DIR}/fabric-server-launch.jar"
-VERSION_MARKER="${SERVER_DIR}/.fabric_version"
+VERSION_MARKER="${DATA_DIR}/.fabric_version"
 
 FABRIC_META="${FABRIC_META:-https://meta.fabricmc.net/v2}"
 MODRINTH_API="${MODRINTH_API:-https://api.modrinth.com/v2}"
@@ -26,8 +31,8 @@ SUPERVISOR_API="${SUPERVISOR_API:-http://supervisor}"
 # Baselines recording the last set we synced for each managed list option, so
 # a three-way merge can tell whether an entry was added or removed in-game
 # (in the live JSON) versus in the Home Assistant UI (in the options).
-OPS_BASELINE="${SERVER_DIR}/.synced_ops"
-WHITELIST_BASELINE="${SERVER_DIR}/.synced_whitelist"
+OPS_BASELINE="${DATA_DIR}/.synced_ops"
+WHITELIST_BASELINE="${DATA_DIR}/.synced_whitelist"
 
 MC_VERSION=""
 LOADER_VERSION=""
@@ -49,6 +54,35 @@ resolve_uuid() {
     id="$(echo "${prof}" | jq -r '.id // empty' 2>/dev/null || true)"
     [[ -z "${id}" ]] && return 1
     printf '%s-%s-%s-%s-%s' "${id:0:8}" "${id:8:4}" "${id:12:4}" "${id:16:4}" "${id:20:12}"
+}
+
+# ---------------------------------------------------------------------------
+# Config-file symlinks: keep all Minecraft config files in ADDON_CONFIG_DIR
+# (user-visible) while keeping SERVER_DIR (share) for large files.
+# Symlinks from SERVER_DIR point into ADDON_CONFIG_DIR so Minecraft finds them.
+# If a regular file or directory exists at the link destination from a prior
+# install it is moved to ADDON_CONFIG_DIR before the symlink is created.
+# ---------------------------------------------------------------------------
+link_config_files() {
+    mkdir -p "${ADDON_CONFIG_DIR}"
+
+    for rel in eula.txt server.properties ops.json whitelist.json; do
+        local dst="${SERVER_DIR}/${rel}"
+        if [[ -f "${dst}" && ! -L "${dst}" ]]; then
+            mv "${dst}" "${ADDON_CONFIG_DIR}/${rel}"
+        fi
+        ln -sfn "${ADDON_CONFIG_DIR}/${rel}" "${dst}"
+    done
+
+    # config/ holds per-mod configs (Geyser, etc.) — symlink the whole dir.
+    local config_src="${ADDON_CONFIG_DIR}/config"
+    local config_dst="${SERVER_DIR}/config"
+    mkdir -p "${config_src}"
+    if [[ -d "${config_dst}" && ! -L "${config_dst}" ]]; then
+        cp -a "${config_dst}/." "${config_src}/"
+        rm -rf "${config_dst}"
+    fi
+    ln -sfn "${config_src}" "${config_dst}"
 }
 
 # ---------------------------------------------------------------------------
@@ -342,38 +376,35 @@ apply_whitelist() {
 }
 
 # ---------------------------------------------------------------------------
-# World location — keep the world in the user-accessible add-on config folder.
+# World location — world lives in SERVER_DIR (share) so it is user-accessible
+# via Samba / File editor without bloating the add-on config folder.
 #
-# Minecraft always stores the world at <server-dir>/<level-name>, so we point
-# that at ${ADDON_CONFIG_DIR}/<level-name> with a symlink. Users can then browse
-# the folder via the File editor / Samba add-ons to back up, edit, or drop in
-# their own world (just match the folder name to the World Name option).
-# An existing world from an older version (a real directory in the server dir)
-# is migrated into the add-on config folder so it is never lost.
+# Handles migration from pre-1.3.0 where the world was kept in ADDON_CONFIG_DIR:
+# if a real world directory exists there but not yet in SERVER_DIR it is moved.
 # ---------------------------------------------------------------------------
-link_world() {
+prepare_world() {
     local level_name; level_name="$(opt level_name)"
     [[ -z "${level_name}" ]] && level_name="world"
 
-    mkdir -p "${ADDON_CONFIG_DIR}"
-    local target="${ADDON_CONFIG_DIR}/${level_name}"
-    local link="${SERVER_DIR}/${level_name}"
+    local target="${SERVER_DIR}/${level_name}"
+    local old_addon_world="${ADDON_CONFIG_DIR}/${level_name}"
 
-    # Migrate a pre-existing in-server world to the add-on config folder once.
-    if [[ -d "${link}" && ! -L "${link}" ]]; then
+    # Remove any leftover symlink at the target path (pre-1.3.0 artefact).
+    [[ -L "${target}" ]] && rm -f "${target}"
+
+    # Migrate from the old add-on config location if the world isn't in share yet.
+    if [[ -d "${old_addon_world}" && ! -L "${old_addon_world}" ]]; then
         if [[ ! -e "${target}" ]]; then
-            bashio::log.info "Migrating world '${level_name}' to the add-on config folder..."
-            mv "${link}" "${target}"
+            bashio::log.info "Migrating world '${level_name}' from add-on config to share..."
+            mv "${old_addon_world}" "${target}"
         else
-            bashio::log.warning "Both ${link} and ${target} exist; using ${target} and leaving the old copy in place."
-            rm -rf "${link}"
+            bashio::log.warning \
+                "World exists in both ${old_addon_world} and ${target}; using share copy."
         fi
     fi
 
     mkdir -p "${target}"
-    # -n so an existing symlink is replaced rather than dereferenced into.
-    ln -sfn "${target}" "${link}"
-    bashio::log.info "World '${level_name}' stored in the add-on config folder."
+    bashio::log.info "World '${level_name}' stored in share."
 }
 
 # ---------------------------------------------------------------------------
@@ -511,7 +542,11 @@ build_jvm_args() {
 # Main
 # ---------------------------------------------------------------------------
 main() {
-    mkdir -p "${SERVER_DIR}"
+    mkdir -p "${SERVER_DIR}" "${ADDON_CONFIG_DIR}" "${DATA_DIR}"
+
+    # Set up symlinks so config files are stored in the add-on config folder
+    # (user-visible) while Minecraft still finds them in its working directory.
+    link_config_files
 
     handle_eula
     resolve_versions
@@ -524,8 +559,8 @@ main() {
     write_geyser_config
     apply_ops
     apply_whitelist
-    # Keep the world in the user-accessible add-on config folder.
-    link_world
+    # World lives in share (SERVER_DIR); migrate from old add-on config location if needed.
+    prepare_world
 
     build_jvm_args
 

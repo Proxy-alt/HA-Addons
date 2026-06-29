@@ -341,53 +341,100 @@ set_via_options() {
 }
 
 # ---------------------------------------------------------------------------
-# World in the add-on config folder (link_world)
+# Config-file symlinks (link_config_files)
 # ---------------------------------------------------------------------------
 
-@test "link_world symlinks the world into the add-on config folder" {
-    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"  # level_name: world
-    link_world
-    [ -L "${SERVER_DIR}/world" ]
-    [ -d "${ADDON_CONFIG_DIR}/world" ]
-    [ "$(readlink "${SERVER_DIR}/world")" = "${ADDON_CONFIG_DIR}/world" ]
+@test "link_config_files symlinks config files into add-on config folder" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    link_config_files
+    handle_eula
+    write_server_properties
+    [ -L "${SERVER_DIR}/eula.txt" ]
+    [ -f "${ADDON_CONFIG_DIR}/eula.txt" ]
+    grep -q '^eula=true$' "${ADDON_CONFIG_DIR}/eula.txt"
+    [ -L "${SERVER_DIR}/server.properties" ]
+    [ -f "${ADDON_CONFIG_DIR}/server.properties" ]
+    grep -q '^motd=' "${ADDON_CONFIG_DIR}/server.properties"
 }
 
-@test "link_world honors a custom level_name" {
+@test "link_config_files symlinks ops and whitelist into add-on config folder" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    link_config_files
+    use_curl_mock
+    apply_ops
+    apply_whitelist
+    [ -L "${SERVER_DIR}/ops.json" ]
+    [ -f "${ADDON_CONFIG_DIR}/ops.json" ]
+    [ -L "${SERVER_DIR}/whitelist.json" ]
+    [ -f "${ADDON_CONFIG_DIR}/whitelist.json" ]
+}
+
+@test "link_config_files symlinks config/ directory into add-on config folder" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    link_config_files
+    write_geyser_config
+    [ -L "${SERVER_DIR}/config" ]
+    [ -f "${ADDON_CONFIG_DIR}/config/Geyser-Fabric/config.yml" ]
+}
+
+@test "link_config_files migrates an existing regular config/ dir from server to addon_config" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    mkdir -p "${SERVER_DIR}/config/SomeMod"
+    echo "oldcfg" > "${SERVER_DIR}/config/SomeMod/config.yml"
+    link_config_files
+    [ -L "${SERVER_DIR}/config" ]
+    [ -f "${ADDON_CONFIG_DIR}/config/SomeMod/config.yml" ]
+    [ "$(cat "${ADDON_CONFIG_DIR}/config/SomeMod/config.yml")" = "oldcfg" ]
+}
+
+# ---------------------------------------------------------------------------
+# World in share (prepare_world)
+# ---------------------------------------------------------------------------
+
+@test "prepare_world creates the world directory in share" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    prepare_world
+    [ -d "${SERVER_DIR}/world" ]
+    [ ! -L "${SERVER_DIR}/world" ]
+}
+
+@test "prepare_world honors a custom level_name" {
     load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
     jq '.level_name = "myworld"' "${OPTIONS}" > "${TEST_TMPDIR}/opts.json"
     OPTIONS="${TEST_TMPDIR}/opts.json"
-    link_world
-    [ -L "${SERVER_DIR}/myworld" ]
-    [ -d "${ADDON_CONFIG_DIR}/myworld" ]
+    prepare_world
+    [ -d "${SERVER_DIR}/myworld" ]
+    [ ! -L "${SERVER_DIR}/myworld" ]
 }
 
-@test "link_world uses a world the user dropped into the add-on config folder" {
+@test "prepare_world migrates a world from the old add-on config location" {
     load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
     mkdir -p "${ADDON_CONFIG_DIR}/world"
     echo "leveldata" > "${ADDON_CONFIG_DIR}/world/level.dat"
-    link_world
-    [ -L "${SERVER_DIR}/world" ]
+    prepare_world
+    [ -d "${SERVER_DIR}/world" ]
+    [ ! -L "${SERVER_DIR}/world" ]
     [ -f "${SERVER_DIR}/world/level.dat" ]
     [ "$(cat "${SERVER_DIR}/world/level.dat")" = "leveldata" ]
+    [ ! -d "${ADDON_CONFIG_DIR}/world" ]
 }
 
-@test "link_world migrates an existing in-server world" {
+@test "prepare_world does not overwrite an existing share world with the addon_config copy" {
     load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    mkdir -p "${ADDON_CONFIG_DIR}/world"
+    echo "old" > "${ADDON_CONFIG_DIR}/world/level.dat"
     mkdir -p "${SERVER_DIR}/world"
-    echo "oldworld" > "${SERVER_DIR}/world/level.dat"
-    link_world
-    [ -L "${SERVER_DIR}/world" ]
-    [ -f "${ADDON_CONFIG_DIR}/world/level.dat" ]
-    [ "$(cat "${SERVER_DIR}/world/level.dat")" = "oldworld" ]
+    echo "new" > "${SERVER_DIR}/world/level.dat"
+    prepare_world
+    [ "$(cat "${SERVER_DIR}/world/level.dat")" = "new" ]
 }
 
-@test "link_world is idempotent" {
+@test "prepare_world is idempotent" {
     load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
-    link_world
-    echo "data" > "${ADDON_CONFIG_DIR}/world/level.dat"
-    link_world
-    [ -L "${SERVER_DIR}/world" ]
-    [ "$(cat "${ADDON_CONFIG_DIR}/world/level.dat")" = "data" ]
+    prepare_world
+    echo "data" > "${SERVER_DIR}/world/level.dat"
+    prepare_world
+    [ "$(cat "${SERVER_DIR}/world/level.dat")" = "data" ]
 }
 
 # ---------------------------------------------------------------------------

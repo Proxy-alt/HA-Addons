@@ -1,5 +1,5 @@
 name: Fabric Server
-version: "1.2.0"
+version: "1.3.0"
 slug: fabric_server
 description: >-
   Minecraft Fabric server with Geyser + Floodgate (Bedrock cross-play) and
@@ -19,9 +19,13 @@ hassio_api: true
 map:
   - type: data
     read_only: false
-  # User-accessible folder (browse via the File editor / Samba add-ons at
-  # /addon_configs/<slug>). The world lives here so users can add their own.
+  # Config files (server.properties, ops.json, whitelist.json, mod configs).
+  # Browse via File editor / Samba at /addon_configs/<slug>.
   - type: addon_config
+    read_only: false
+  # Large files: world data and mods. Browse via File editor / Samba at /share.
+  # Drop custom mod JARs into /share/fabric_server/mods/ here.
+  - type: share
     read_only: false
 options:
   # Required

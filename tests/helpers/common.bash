@@ -59,14 +59,15 @@ load_fabric_run() {
     OPTIONS="${fixture}"
     SERVER_DIR="${TEST_TMPDIR}/server"
     ADDON_CONFIG_DIR="${TEST_TMPDIR}/addon_config"
+    DATA_DIR="${TEST_TMPDIR}/data"
     MODS_DIR="${SERVER_DIR}/mods"
-    MANAGED_FILE="${SERVER_DIR}/.managed_mods"
+    MANAGED_FILE="${DATA_DIR}/.managed_mods"
     LAUNCHER_JAR="${SERVER_DIR}/fabric-server-launch.jar"
-    VERSION_MARKER="${SERVER_DIR}/.fabric_version"
-    OPS_BASELINE="${SERVER_DIR}/.synced_ops"
-    WHITELIST_BASELINE="${SERVER_DIR}/.synced_whitelist"
+    VERSION_MARKER="${DATA_DIR}/.fabric_version"
+    OPS_BASELINE="${DATA_DIR}/.synced_ops"
+    WHITELIST_BASELINE="${DATA_DIR}/.synced_whitelist"
     JAVA_BIN="/bin/true"
-    mkdir -p "${MODS_DIR}"
+    mkdir -p "${MODS_DIR}" "${DATA_DIR}" "${ADDON_CONFIG_DIR}"
 }
 
 # Offline curl replacement for fabric-server tests. Routes by URL:
