@@ -9,6 +9,9 @@ source "${BASHIO_LIB:-/usr/lib/bashio/bashio.sh}"
 # ---------------------------------------------------------------------------
 OPTIONS="${OPTIONS:-/data/options.json}"
 SERVER_DIR="${SERVER_DIR:-/data/server}"
+# User-accessible add-on config folder (mapped to /addon_configs/<slug> on the
+# host). The Minecraft world lives here so users can manage or drop in their own.
+ADDON_CONFIG_DIR="${ADDON_CONFIG_DIR:-/config}"
 MODS_DIR="${SERVER_DIR}/mods"
 MANAGED_FILE="${SERVER_DIR}/.managed_mods"
 LAUNCHER_JAR="${SERVER_DIR}/fabric-server-launch.jar"
@@ -339,6 +342,41 @@ apply_whitelist() {
 }
 
 # ---------------------------------------------------------------------------
+# World location — keep the world in the user-accessible add-on config folder.
+#
+# Minecraft always stores the world at <server-dir>/<level-name>, so we point
+# that at ${ADDON_CONFIG_DIR}/<level-name> with a symlink. Users can then browse
+# the folder via the File editor / Samba add-ons to back up, edit, or drop in
+# their own world (just match the folder name to the World Name option).
+# An existing world from an older version (a real directory in the server dir)
+# is migrated into the add-on config folder so it is never lost.
+# ---------------------------------------------------------------------------
+link_world() {
+    local level_name; level_name="$(opt level_name)"
+    [[ -z "${level_name}" ]] && level_name="world"
+
+    mkdir -p "${ADDON_CONFIG_DIR}"
+    local target="${ADDON_CONFIG_DIR}/${level_name}"
+    local link="${SERVER_DIR}/${level_name}"
+
+    # Migrate a pre-existing in-server world to the add-on config folder once.
+    if [[ -d "${link}" && ! -L "${link}" ]]; then
+        if [[ ! -e "${target}" ]]; then
+            bashio::log.info "Migrating world '${level_name}' to the add-on config folder..."
+            mv "${link}" "${target}"
+        else
+            bashio::log.warning "Both ${link} and ${target} exist; using ${target} and leaving the old copy in place."
+            rm -rf "${link}"
+        fi
+    fi
+
+    mkdir -p "${target}"
+    # -n so an existing symlink is replaced rather than dereferenced into.
+    ln -sfn "${target}" "${link}"
+    bashio::log.info "World '${level_name}' stored in the add-on config folder."
+}
+
+# ---------------------------------------------------------------------------
 # Two-way config sync (runtime ⇆ options)
 #
 # Players change the server at runtime with commands such as /op, /deop and
@@ -486,6 +524,8 @@ main() {
     write_geyser_config
     apply_ops
     apply_whitelist
+    # Keep the world in the user-accessible add-on config folder.
+    link_world
 
     build_jvm_args
 

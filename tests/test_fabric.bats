@@ -341,6 +341,56 @@ set_via_options() {
 }
 
 # ---------------------------------------------------------------------------
+# World in the add-on config folder (link_world)
+# ---------------------------------------------------------------------------
+
+@test "link_world symlinks the world into the add-on config folder" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"  # level_name: world
+    link_world
+    [ -L "${SERVER_DIR}/world" ]
+    [ -d "${ADDON_CONFIG_DIR}/world" ]
+    [ "$(readlink "${SERVER_DIR}/world")" = "${ADDON_CONFIG_DIR}/world" ]
+}
+
+@test "link_world honors a custom level_name" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    jq '.level_name = "myworld"' "${OPTIONS}" > "${TEST_TMPDIR}/opts.json"
+    OPTIONS="${TEST_TMPDIR}/opts.json"
+    link_world
+    [ -L "${SERVER_DIR}/myworld" ]
+    [ -d "${ADDON_CONFIG_DIR}/myworld" ]
+}
+
+@test "link_world uses a world the user dropped into the add-on config folder" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    mkdir -p "${ADDON_CONFIG_DIR}/world"
+    echo "leveldata" > "${ADDON_CONFIG_DIR}/world/level.dat"
+    link_world
+    [ -L "${SERVER_DIR}/world" ]
+    [ -f "${SERVER_DIR}/world/level.dat" ]
+    [ "$(cat "${SERVER_DIR}/world/level.dat")" = "leveldata" ]
+}
+
+@test "link_world migrates an existing in-server world" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    mkdir -p "${SERVER_DIR}/world"
+    echo "oldworld" > "${SERVER_DIR}/world/level.dat"
+    link_world
+    [ -L "${SERVER_DIR}/world" ]
+    [ -f "${ADDON_CONFIG_DIR}/world/level.dat" ]
+    [ "$(cat "${SERVER_DIR}/world/level.dat")" = "oldworld" ]
+}
+
+@test "link_world is idempotent" {
+    load_fabric_run "${FIXTURES_DIR}/options_fabric_defaults.json"
+    link_world
+    echo "data" > "${ADDON_CONFIG_DIR}/world/level.dat"
+    link_world
+    [ -L "${SERVER_DIR}/world" ]
+    [ "$(cat "${ADDON_CONFIG_DIR}/world/level.dat")" = "data" ]
+}
+
+# ---------------------------------------------------------------------------
 # Three-way list merge (merge_list)
 # ---------------------------------------------------------------------------
 

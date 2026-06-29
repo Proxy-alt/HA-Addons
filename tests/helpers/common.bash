@@ -58,6 +58,7 @@ load_fabric_run() {
 
     OPTIONS="${fixture}"
     SERVER_DIR="${TEST_TMPDIR}/server"
+    ADDON_CONFIG_DIR="${TEST_TMPDIR}/addon_config"
     MODS_DIR="${SERVER_DIR}/mods"
     MANAGED_FILE="${SERVER_DIR}/.managed_mods"
     LAUNCHER_JAR="${SERVER_DIR}/fabric-server-launch.jar"

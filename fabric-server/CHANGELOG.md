@@ -1,3 +1,12 @@
+## 1.2.0
+
+### Added
+
+- The Minecraft world is now stored in the add-on **config folder**
+  (`/addon_configs/<slug>`), browsable via the File editor / Samba add-ons, so
+  you can back up, edit, or drop in your own world. Existing worlds under
+  `/data/server` are migrated automatically.
+
 ## 1.1.2
 
 ### Added

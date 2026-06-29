@@ -47,6 +47,29 @@ worlds and configuration survive restarts and updates.
 
 ---
 
+## Your world (add your own)
+
+The world is stored in the add-on's **config folder**, which you can browse with
+the **File editor**, **Studio Code Server**, or **Samba** add-ons at:
+
+```
+/addon_configs/<this-add-on-slug>/
+```
+
+Inside the server, Minecraft still reads the world from `<server>/<World Name>`;
+the add-on symlinks that to the config folder for you. This means you can:
+
+- **Back up or edit** the live world from the config folder.
+- **Add your own world:** stop the add-on, copy your world folder into the config
+  folder, set the **World Name** option to match that folder's name, and start
+  the add-on.
+
+> A world created by an older version of the add-on (stored directly under
+> `/data/server`) is migrated into the config folder automatically on the next
+> start, so nothing is lost.
+
+---
+
 ## Versions
 
 | Option | Notes |
@@ -214,7 +237,7 @@ to update, or pin **Minecraft Version** to a release the mod already supports.
 ### Reset the world
 
 Stop the add-on, change **World Name** to a new value (or delete the old world
-folder under `/data/server`), and start again.
+folder from the add-on config folder, `/addon_configs/<slug>/`), and start again.
 
 ---
 

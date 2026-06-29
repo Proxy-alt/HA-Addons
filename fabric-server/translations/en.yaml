@@ -91,7 +91,10 @@ configuration:
     description: Distance in chunks within which the world is actively ticked (3-32).
   level_name:
     name: World Name
-    description: Folder name for the world. Change this to start a fresh world.
+    description: >-
+      Folder name for the world. Change this to start a fresh world. The world is
+      stored in the add-on config folder (/addon_configs/<slug>); to use your own
+      world, drop its folder there and set this to match its name.
   level_seed:
     name: World Seed
     description: Seed for world generation. Leave empty for a random seed.
