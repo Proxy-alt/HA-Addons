@@ -8,7 +8,7 @@ ARG TARGETARCH
 # Install runtime dependencies and download the playit agent binary.
 # Release assets follow the Rust target-triple naming convention:
 #   https://github.com/playit-cloud/playit-program/releases
-ARG PLAYIT_VERSION="0.15.26"
+ARG PLAYIT_VERSION="1.0.10"
 RUN \
     apt-get update \
     && apt-get install -y --no-install-recommends \
