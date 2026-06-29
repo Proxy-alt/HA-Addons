@@ -1,0 +1,8 @@
+configuration:
+  secret_key:
+    name: Secret Key
+    description: >-
+      The agent secret key from your playit.gg dashboard. Leave blank on
+      first run — the add-on will print a claim URL in its Log tab. Visit
+      that URL to associate this agent with your playit.gg account, then
+      copy the generated secret key here and restart the add-on.

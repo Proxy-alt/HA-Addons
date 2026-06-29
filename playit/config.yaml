@@ -1,0 +1,22 @@
+name: Playit.gg
+version: "0.1.0"
+slug: playit
+description: >-
+  Expose local services to the internet without port forwarding using
+  playit.gg tunnels. Manage tunnels at app.playit.gg.
+url: https://playit.gg
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+init: false
+map:
+  - type: data
+    read_only: false
+options:
+  secret_key: ""
+schema:
+  secret_key: str
+panel_icon: mdi:tunnel
+panel_title: Playit.gg
