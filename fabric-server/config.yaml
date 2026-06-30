@@ -1,10 +1,11 @@
-name: Fabric Server
-version: "1.3.0"
+name: Minecraft Server
+version: "2.0.0"
 slug: fabric_server
 description: >-
-  Minecraft Fabric server with Geyser + Floodgate (Bedrock cross-play) and
-  performance mods, all configurable from the Home Assistant UI.
-url: https://fabricmc.net/
+  Multi-type Minecraft server: Vanilla, Paper, Purpur, Fabric, Forge, Bedrock
+  (BDS), and EaglercraftX — all configurable from the Home Assistant UI with a
+  built-in web console dashboard.
+url: https://minecraft.net/
 arch:
   - amd64
   - aarch64
@@ -12,33 +13,44 @@ startup: application
 boot: auto
 init: false
 host_network: true
-# hassio_api lets run.sh sync in-game changes (e.g. /op, /whitelist) back to the
-# add-on options via the Supervisor API (POST /addons/self/options) so the UI
-# reflects what players changed at runtime.
+ingress: true
+ingress_port: 8099
 hassio_api: true
 map:
   - type: data
     read_only: false
-  # Config files (server.properties, ops.json, whitelist.json, mod configs).
-  # Browse via File editor / Samba at /addon_configs/<slug>.
   - type: addon_config
     read_only: false
-  # Large files: world data and mods. Browse via File editor / Samba at /share.
-  # Drop custom mod JARs into /share/fabric_server/mods/ here.
   - type: share
     read_only: false
 options:
-  # Required
+  # ── Server type ──────────────────────────────────────────────────────────
+  # vanilla      : Official Mojang server — no mods, maximum compatibility.
+  # paper        : High-performance Spigot fork; supports Bukkit/Spigot plugins.
+  # purpur       : Paper fork with extra configuration knobs; supports plugins.
+  # fabric       : Fabric mod loader (default); manages mods via Modrinth.
+  # forge        : Forge mod loader; requires a specific minecraft_version.
+  # bds          : Bedrock Dedicated Server — Bedrock clients only, no Java.
+  # eaglercraft  : EaglercraftX — browser-playable; place JAR manually first.
+  server_type: "fabric"
+
+  # ── Required ─────────────────────────────────────────────────────────────
   accept_eula: false
-  # Versions
+
+  # ── Versions ─────────────────────────────────────────────────────────────
   minecraft_version: "latest"
+  # Fabric only
   fabric_loader_version: "latest"
-  # Memory & JVM
+  # Forge only — "latest" picks the recommended build, or pin e.g. "54.1.0"
+  forge_version: "latest"
+
+  # ── Memory & JVM (Java server types only) ────────────────────────────────
   max_memory: "2G"
   min_memory: "1G"
   java_args: ""
-  # Server properties
-  motd: "A Fabric server, powered by Home Assistant"
+
+  # ── Server properties (all types unless noted) ───────────────────────────
+  motd: "A Minecraft server, powered by Home Assistant"
   gamemode: "survival"
   difficulty: "normal"
   hardcore: false
@@ -59,27 +71,43 @@ options:
   player_idle_timeout: 0
   ops: []
   whitelist: []
-  # Bedrock cross-play (Geyser + Floodgate)
+
+  # ── Bedrock cross-play via Geyser + Floodgate ────────────────────────────
+  # Supported on: fabric, paper, purpur, forge (downloaded from Modrinth for
+  # the matching loader). Not applicable to: vanilla (no plugin/mod loader),
+  # bds (already native Bedrock), eaglercraft (separate ecosystem).
   geyser_enabled: true
   bedrock_port: 19132
-  geyser_motd: "Fabric Server"
+  geyser_motd: "Minecraft Server"
   floodgate_enabled: true
-  # Version compatibility
+
+  # ── Protocol version compatibility ───────────────────────────────────────
+  # Supported on: fabric (ViaFabric), paper/purpur (ViaVersion plugin),
+  # forge (ViaForge). Not applicable to: vanilla, bds, eaglercraft.
   viaversion_enabled: false
   viabackwards_enabled: false
   viarewind_enabled: false
-  # Optimization mods
+
+  # ── Optimization mods (Fabric only) ──────────────────────────────────────
+  # These are Fabric-specific mods with no Paper/Purpur/Forge equivalent;
+  # ignored (with a log warning) on every other server type.
   mod_lithium: true
   mod_ferritecore: true
   mod_krypton: true
   mod_c2me: false
   mod_servercore: false
-  # Extra mods (Modrinth project slugs)
+
+  # ── Extra Modrinth mods/plugins ──────────────────────────────────────────
+  # Supported on: fabric, paper, purpur, forge — tried against the active
+  # loader's Modrinth builds. Not applicable to: vanilla, bds, eaglercraft.
   extra_mods: []
+
 schema:
+  server_type: "list(vanilla|paper|purpur|fabric|forge|bds|eaglercraft)"
   accept_eula: bool
   minecraft_version: str
   fabric_loader_version: str
+  forge_version: str
   max_memory: "match(^[0-9]+[KkMmGg]?$)"
   min_memory: "match(^[0-9]+[KkMmGg]?$)"
   java_args: str
@@ -125,6 +153,6 @@ ports:
   19132/udp: 19132
 ports_description:
   25565/tcp: Minecraft Java Edition
-  19132/udp: Minecraft Bedrock Edition (Geyser)
+  19132/udp: Minecraft Bedrock Edition (Geyser / BDS)
 panel_icon: mdi:minecraft
-panel_title: Fabric Server
+panel_title: Minecraft Server

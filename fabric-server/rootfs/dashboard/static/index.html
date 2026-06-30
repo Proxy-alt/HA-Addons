@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minecraft Server</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --panel:     #161b22;
+      --border:    #30363d;
+      --text:      #c9d1d9;
+      --muted:     #8b949e;
+      --green:     #3fb950;
+      --yellow:    #d29922;
+      --red:       #f85149;
+      --blue:      #58a6ff;
+      --accent:    #238636;
+      --accent-h:  #2ea043;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      flex-shrink: 0;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .server-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .status-dot.running  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.starting { background: var(--yellow); }
+    .status-dot.stopped  { background: var(--red); }
+
+    .stat-chips {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .chip span { color: var(--text); }
+
+    /* ── Terminal ── */
+    #terminal {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      background: var(--bg);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .log-line {
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text);
+    }
+    .log-line.info  { color: #7ee787; }
+    .log-line.warn  { color: var(--yellow); }
+    .log-line.error { color: var(--red); }
+    .log-line.fatal { color: var(--red); font-weight: bold; }
+    .log-line.dash  { color: var(--blue); font-style: italic; }
+
+    /* ── Footer / command bar ── */
+    footer {
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      padding: 8px 12px;
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    #cmd-prefix {
+      color: var(--green);
+      align-self: center;
+      user-select: none;
+    }
+
+    #cmd-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #cmd-input:focus { border-color: var(--accent-h); }
+    #cmd-input::placeholder { color: var(--muted); }
+
+    #send-btn {
+      background: var(--accent);
+      border: 1px solid var(--accent-h);
+      border-radius: 4px;
+      color: #fff;
+      padding: 6px 14px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #send-btn:hover  { background: var(--accent-h); }
+    #send-btn:active { transform: scale(0.97); }
+
+    /* ── Scrollbar ── */
+    #terminal::-webkit-scrollbar       { width: 6px; }
+    #terminal::-webkit-scrollbar-track { background: var(--bg); }
+    #terminal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <span class="server-title">Minecraft Server</span>
+
+    <span class="badge">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Connecting…</span>
+    </span>
+
+    <div class="stat-chips">
+      <span class="chip">Type: <span id="stat-type">—</span></span>
+      <span class="chip">Version: <span id="stat-version">—</span></span>
+      <span class="chip">Players: <span id="stat-players">—</span></span>
+      <span class="chip">Uptime: <span id="stat-uptime">—</span></span>
+    </div>
+  </div>
+</header>
+
+<div id="terminal" role="log" aria-live="polite" aria-label="Server console"></div>
+
+<footer>
+  <span id="cmd-prefix">&gt;</span>
+  <input id="cmd-input" type="text" placeholder="Enter server command…" autocomplete="off" spellcheck="false">
+  <button id="send-btn">Send</button>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  const terminal  = document.getElementById('terminal');
+  const cmdInput  = document.getElementById('cmd-input');
+  const sendBtn   = document.getElementById('send-btn');
+  const statusDot = document.getElementById('status-dot');
+  const statusTxt = document.getElementById('status-text');
+  const statType  = document.getElementById('stat-type');
+  const statVer   = document.getElementById('stat-version');
+  const statPlrs  = document.getElementById('stat-players');
+  const statUp    = document.getElementById('stat-uptime');
+
+  let autoScroll = true;
+  let ws = null;
+  let reconnectTimer = null;
+
+  // ── Auto-scroll tracking ───────────────────────────────────────────────
+  terminal.addEventListener('scroll', () => {
+    const { scrollTop, scrollHeight, clientHeight } = terminal;
+    autoScroll = (scrollTop + clientHeight) >= (scrollHeight - 60);
+  });
+
+  function scrollToBottom() {
+    if (autoScroll) terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  // ── Log rendering ─────────────────────────────────────────────────────
+  function classifyLine(text) {
+    if (text.startsWith('[dashboard]'))         return 'dash';
+    if (/\b(FATAL|fatal)\b/.test(text))         return 'fatal';
+    if (/\b(ERROR|error)\b/.test(text))         return 'error';
+    if (/\b(WARN|warn)\b/.test(text))           return 'warn';
+    if (/\b(INFO|info)\b/.test(text))           return 'info';
+    return '';
+  }
+
+  function appendLine(text) {
+    const trimmed = text.replace(/\n$/, '');
+    if (!trimmed) return;
+
+    const div = document.createElement('div');
+    div.className = 'log-line ' + classifyLine(trimmed);
+    div.textContent = trimmed;
+    terminal.appendChild(div);
+
+    // Keep at most 2 000 lines in the DOM
+    while (terminal.children.length > 2000) {
+      terminal.removeChild(terminal.firstChild);
+    }
+
+    scrollToBottom();
+  }
+
+  // ── WebSocket connection ───────────────────────────────────────────────
+  function buildWsUrl() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const base  = location.href.replace(/\/?$/, '').replace(/^http/, 'ws');
+    return base + '/ws/terminal';
+  }
+
+  function connect() {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+
+    ws = new WebSocket(buildWsUrl());
+
+    ws.onopen = () => {
+      statusDot.className = 'status-dot starting';
+      statusTxt.textContent = 'Connected';
+    };
+
+    ws.onmessage = (e) => {
+      (e.data || '').split('\n').forEach(appendLine);
+    };
+
+    ws.onclose = () => {
+      statusDot.className = 'status-dot stopped';
+      statusTxt.textContent = 'Disconnected';
+      appendLine('[dashboard] WebSocket closed — reconnecting in 4 s…');
+      reconnectTimer = setTimeout(connect, 4000);
+    };
+
+    ws.onerror = () => ws.close();
+  }
+
+  function sendCommand() {
+    const cmd = cmdInput.value.trim();
+    if (!cmd || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(cmd);
+    cmdInput.value = '';
+  }
+
+  sendBtn.addEventListener('click', sendCommand);
+  cmdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendCommand();
+  });
+
+  connect();
+
+  // ── SSE status stream (server pushes, client only listens) ───────────────
+  function formatUptime(s) {
+    s = Math.max(0, s | 0);
+    if (s < 60)   return s + 's';
+    if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+    return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+  }
+
+  function applyStatus(d) {
+    if (d.ready) {
+      statusDot.className   = 'status-dot running';
+      statusTxt.textContent = 'Running';
+    } else {
+      statusDot.className   = 'status-dot starting';
+      statusTxt.textContent = 'Starting…';
+    }
+    const typeName = d.server_type || 'unknown';
+    statType.textContent = typeName.charAt(0).toUpperCase() + typeName.slice(1);
+    statVer.textContent  = d.mc_version  || '—';
+    statPlrs.textContent = (d.player_count || 0) + ' / ' + (d.max_players || 20);
+    statUp.textContent   = formatUptime(d.uptime_seconds || 0);
+  }
+
+  function connectSSE() {
+    const evtSrc = new EventSource('./events/status');
+
+    evtSrc.onmessage = (e) => {
+      try { applyStatus(JSON.parse(e.data)); } catch (_) {}
+    };
+
+    evtSrc.onerror = () => {
+      statusDot.className = 'status-dot stopped';
+      // EventSource auto-reconnects; no manual retry needed
+    };
+  }
+
+  connectSSE();
+})();
+</script>
+</body>
+</html>

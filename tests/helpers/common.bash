@@ -52,6 +52,8 @@ load_fabric_run() {
     local fixture="${1:-${FIXTURES_DIR}/options_fabric_defaults.json}"
 
     export BASHIO_LIB="${MOCK_BASHIO}"
+    # Point run.sh at the in-tree server scripts so tests work without /servers/.
+    export SERVERS_DIR="${REPO_DIR}/fabric-server/rootfs/servers"
 
     # shellcheck source=/dev/null
     source "${REPO_DIR}/fabric-server/rootfs/run.sh"

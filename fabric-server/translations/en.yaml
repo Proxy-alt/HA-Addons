@@ -1,4 +1,17 @@
 configuration:
+  # Server type
+  server_type:
+    name: Server Type
+    description: >-
+      Which Minecraft server to run.
+      vanilla — official Mojang server, no mods.
+      paper — high-performance Spigot fork; supports Bukkit/Spigot plugins.
+      purpur — Paper fork with extra customisation; supports plugins.
+      fabric — Fabric mod loader (default); mods managed via Modrinth.
+      forge — Forge mod loader; set minecraft_version to a specific release.
+      bds — Bedrock Dedicated Server; Bedrock clients only, no Java required.
+      eaglercraft — EaglercraftX browser-playable server; place JAR manually first.
+
   # Required
   accept_eula:
     name: Accept Minecraft EULA
@@ -19,7 +32,14 @@ configuration:
     name: Fabric Loader Version
     description: >-
       Fabric loader version. Use "latest" for the newest stable loader (almost
-      always what you want).
+      always what you want). Only used when server_type is "fabric".
+  forge_version:
+    name: Forge Version
+    description: >-
+      Forge build to install. Use "latest" or "recommended" for the stable
+      recommended build, or pin a specific version like "54.1.0". Only used when
+      server_type is "forge". Note: Forge requires a specific minecraft_version
+      (not "latest").
 
   # Memory & JVM
   max_memory:
@@ -135,7 +155,10 @@ configuration:
     name: Enable Geyser (Bedrock cross-play)
     description: >-
       Install GeyserMC so Minecraft Bedrock Edition clients (mobile, console,
-      Windows 10/11) can join this Java server.
+      Windows 10/11) can join this Java server. Supported on Fabric, Paper,
+      Purpur, and Forge (the matching Modrinth build for each is installed
+      automatically). Not applicable to Vanilla (no plugin/mod loader), BDS
+      (already native Bedrock), or EaglercraftX.
   bedrock_port:
     name: Bedrock Port
     description: >-
@@ -154,38 +177,59 @@ configuration:
   viaversion_enabled:
     name: Enable ViaVersion
     description: >-
-      Allows newer Minecraft versions to connect to the server.
+      Allows newer Minecraft versions to connect to the server. Installs the
+      platform-appropriate plugin/mod: ViaFabric on Fabric, the original
+      ViaVersion plugin on Paper/Purpur, or ViaForge on Forge. Not applicable
+      to Vanilla, BDS, or EaglercraftX.
   viabackwards_enabled:
     name: Enable ViaBackwards
     description: >-
-      Allows 1.17 and newer Minecraft versions to connect to the server. Requires ViaVersion.
+      Allows 1.17 and newer Minecraft versions to connect to the server.
+      Requires ViaVersion. Same platform support as ViaVersion above; a
+      missing build for your server type/Minecraft version is skipped with a
+      log warning instead of failing the start.
   viarewind_enabled:
     name: Enable ViaRewind
     description: >-
-      Allows 1.7 and newer Minecraft versions to connect to the server (Significant performance impact). Requires ViaVersion.
+      Allows 1.7 and newer Minecraft versions to connect to the server
+      (significant performance impact). Requires ViaBackwards. Same platform
+      support as ViaVersion above.
   # Optimization mods
   mod_lithium:
     name: Lithium
-    description: General-purpose server optimization mod (no behaviour changes).
+    description: >-
+      General-purpose server optimization mod (no behaviour changes). Fabric
+      only — there is no Paper/Purpur/Forge build, so this is ignored on
+      other server types.
   mod_ferritecore:
     name: FerriteCore
-    description: Reduces the server's memory usage.
+    description: >-
+      Reduces the server's memory usage. Fabric only; ignored on other server
+      types.
   mod_krypton:
     name: Krypton
-    description: Optimizes the Minecraft networking stack.
+    description: >-
+      Optimizes the Minecraft networking stack. Fabric only; ignored on other
+      server types.
   mod_c2me:
     name: C2ME
     description: >-
       Concurrent Chunk Management Engine — parallelizes chunk loading,
-      generation, and saving. Helps most on multi-core hosts.
+      generation, and saving. Helps most on multi-core hosts. Fabric only;
+      ignored on other server types.
   mod_servercore:
     name: ServerCore
-    description: Adds dynamic performance optimizations aimed at server tick rate.
+    description: >-
+      Adds dynamic performance optimizations aimed at server tick rate. Fabric
+      only; ignored on other server types.
 
   # Extra mods
   extra_mods:
     name: Extra Mods
     description: >-
       Additional Modrinth project slugs (the last path segment of a Modrinth
-      URL, e.g. "fabric-api" or "carpet") to install. The newest Fabric build
-      matching your Minecraft version is downloaded for each.
+      URL, e.g. "fabric-api" or "carpet" for Fabric, "EssentialsX" for
+      Paper/Purpur) to install. The newest build matching your active server
+      type's loader and Minecraft version is downloaded for each; slugs with
+      no build for your loader are skipped with a warning. Not applicable to
+      Vanilla, BDS, or EaglercraftX.

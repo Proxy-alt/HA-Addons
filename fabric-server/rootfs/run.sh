@@ -1,572 +1,116 @@
 #!/bin/bash
+# Main add-on entry point.
+# Sources all server-type scripts (function definitions), then dispatches to
+# the appropriate prepare_* function, starts the web dashboard, and manages
+# the server process lifecycle.
 # shellcheck disable=SC1091
 set -euo pipefail
 
-source "${BASHIO_LIB:-/usr/lib/bashio/bashio.sh}"
+SERVERS_DIR="${SERVERS_DIR:-/servers}"
+
+source "${SERVERS_DIR}/common.sh"
+source "${SERVERS_DIR}/run_fabric.sh"
+source "${SERVERS_DIR}/run_vanilla.sh"
+source "${SERVERS_DIR}/run_paper.sh"
+source "${SERVERS_DIR}/run_purpur.sh"
+source "${SERVERS_DIR}/run_forge.sh"
+source "${SERVERS_DIR}/run_bds.sh"
+source "${SERVERS_DIR}/run_eaglercraft.sh"
 
 # ---------------------------------------------------------------------------
-# Paths / endpoints (overridable for tests)
+# Process-communication paths
 # ---------------------------------------------------------------------------
-OPTIONS="${OPTIONS:-/data/options.json}"
-# Large files: Fabric launcher, mods, world data. Mounted from /share so users
-# can access it via Samba/File editor to add custom mods or back up worlds.
-SERVER_DIR="${SERVER_DIR:-/share/fabric_server}"
-# Config files: server.properties, ops.json, whitelist.json, eula.txt, mod
-# configs. Mounted from /addon_configs/<slug>; browseable via File editor.
-# Symlinks from SERVER_DIR point here so Minecraft finds them in its working dir.
-ADDON_CONFIG_DIR="${ADDON_CONFIG_DIR:-/config}"
-# Internal state: version markers, baselines, managed-mods list. Not user-facing.
-DATA_DIR="${DATA_DIR:-/data}"
-MODS_DIR="${SERVER_DIR}/mods"
-MANAGED_FILE="${DATA_DIR}/.managed_mods"
-LAUNCHER_JAR="${SERVER_DIR}/fabric-server-launch.jar"
-VERSION_MARKER="${DATA_DIR}/.fabric_version"
+LOG_FILE="${LOG_FILE:-/tmp/mc.log}"
+STDIN_PIPE="${STDIN_PIPE:-/tmp/mc_stdin}"
+STATUS_FILE="${STATUS_FILE:-/tmp/mc_status.json}"
 
-FABRIC_META="${FABRIC_META:-https://meta.fabricmc.net/v2}"
-MODRINTH_API="${MODRINTH_API:-https://api.modrinth.com/v2}"
-MOJANG_API="${MOJANG_API:-https://api.mojang.com}"
-JAVA_BIN="${JAVA_BIN:-java}"
-SUPERVISOR_API="${SUPERVISOR_API:-http://supervisor}"
+# PIDs managed by cleanup()
+MC_PID=""
+DASH_PID=""
 
-# Baselines recording the last set we synced for each managed list option, so
-# a three-way merge can tell whether an entry was added or removed in-game
-# (in the live JSON) versus in the Home Assistant UI (in the options).
-OPS_BASELINE="${DATA_DIR}/.synced_ops"
-WHITELIST_BASELINE="${DATA_DIR}/.synced_whitelist"
-
-MC_VERSION=""
-LOADER_VERSION=""
-INSTALLER_VERSION=""
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-# Read a scalar option. select(. != null) keeps boolean false as "false"
-# instead of letting jq's // empty discard it.
-opt() { jq -r --arg k "$1" '.[$k] | select(. != null)' "${OPTIONS}"; }
-
-# Resolve a Minecraft username to a hyphenated UUID via the Mojang API.
-# Echoes the UUID and returns 0, or returns 1 when it cannot be resolved.
-resolve_uuid() {
-    local name="$1" prof id
-    prof="$(curl -fsSL "${MOJANG_API}/users/profiles/minecraft/${name}" 2>/dev/null || true)"
-    id="$(echo "${prof}" | jq -r '.id // empty' 2>/dev/null || true)"
-    [[ -z "${id}" ]] && return 1
-    printf '%s-%s-%s-%s-%s' "${id:0:8}" "${id:8:4}" "${id:12:4}" "${id:16:4}" "${id:20:12}"
-}
-
-# ---------------------------------------------------------------------------
-# Config-file symlinks: keep all Minecraft config files in ADDON_CONFIG_DIR
-# (user-visible) while keeping SERVER_DIR (share) for large files.
-# Symlinks from SERVER_DIR point into ADDON_CONFIG_DIR so Minecraft finds them.
-# If a regular file or directory exists at the link destination from a prior
-# install it is moved to ADDON_CONFIG_DIR before the symlink is created.
-# ---------------------------------------------------------------------------
-link_config_files() {
-    mkdir -p "${ADDON_CONFIG_DIR}"
-
-    for rel in eula.txt server.properties ops.json whitelist.json; do
-        local dst="${SERVER_DIR}/${rel}"
-        if [[ -f "${dst}" && ! -L "${dst}" ]]; then
-            mv "${dst}" "${ADDON_CONFIG_DIR}/${rel}"
-        fi
-        ln -sfn "${ADDON_CONFIG_DIR}/${rel}" "${dst}"
-    done
-
-    # config/ holds per-mod configs (Geyser, etc.) — symlink the whole dir.
-    local config_src="${ADDON_CONFIG_DIR}/config"
-    local config_dst="${SERVER_DIR}/config"
-    mkdir -p "${config_src}"
-    if [[ -d "${config_dst}" && ! -L "${config_dst}" ]]; then
-        cp -a "${config_dst}/." "${config_src}/"
-        rm -rf "${config_dst}"
-    fi
-    ln -sfn "${config_src}" "${config_dst}"
-}
-
-# ---------------------------------------------------------------------------
-# EULA — required
-# ---------------------------------------------------------------------------
-handle_eula() {
-    if [[ "$(opt accept_eula)" != "true" ]]; then
-        bashio::log.fatal "You must accept the Minecraft EULA to run this server."
-        bashio::log.fatal "Set 'accept_eula: true' in the add-on configuration."
-        bashio::log.fatal "EULA: https://aka.ms/MinecraftEULA"
-        return 1
-    fi
-    echo "eula=true" > "${SERVER_DIR}/eula.txt"
-}
-
-# ---------------------------------------------------------------------------
-# Resolve Minecraft / Fabric versions ("latest" → newest stable)
-# ---------------------------------------------------------------------------
-resolve_versions() {
-    MC_VERSION="$(opt minecraft_version)"
-    if [[ -z "${MC_VERSION}" || "${MC_VERSION}" == "latest" ]]; then
-        MC_VERSION="$(curl -fsSL "${FABRIC_META}/versions/game" 2>/dev/null \
-            | jq -r '[.[] | select(.stable)][0].version // empty')"
-    fi
-
-    LOADER_VERSION="$(opt fabric_loader_version)"
-    if [[ -z "${LOADER_VERSION}" || "${LOADER_VERSION}" == "latest" ]]; then
-        LOADER_VERSION="$(curl -fsSL "${FABRIC_META}/versions/loader" 2>/dev/null \
-            | jq -r '[.[] | select(.stable)][0].version // empty')"
-    fi
-
-    INSTALLER_VERSION="$(curl -fsSL "${FABRIC_META}/versions/installer" 2>/dev/null \
-        | jq -r '[.[] | select(.stable)][0].version // empty')"
-
-    if [[ -z "${MC_VERSION}" || -z "${LOADER_VERSION}" || -z "${INSTALLER_VERSION}" ]]; then
-        bashio::log.fatal "Could not resolve Fabric versions (Minecraft='${MC_VERSION}'," \
-            "loader='${LOADER_VERSION}', installer='${INSTALLER_VERSION}')."
-        bashio::log.fatal "Check the add-on's internet access and try again."
-        return 1
-    fi
-
-    bashio::log.info "Minecraft ${MC_VERSION} · Fabric loader ${LOADER_VERSION} · installer ${INSTALLER_VERSION}"
-}
-
-# ---------------------------------------------------------------------------
-# Download the Fabric server launcher (only when version changes)
-# ---------------------------------------------------------------------------
-download_server_jar() {
-    local desired="${MC_VERSION}-${LOADER_VERSION}-${INSTALLER_VERSION}"
-    if [[ -f "${LAUNCHER_JAR}" && "$(cat "${VERSION_MARKER}" 2>/dev/null)" == "${desired}" ]]; then
-        bashio::log.info "Fabric server launcher already up to date."
-        return 0
-    fi
-
-    local url="${FABRIC_META}/versions/loader/${MC_VERSION}/${LOADER_VERSION}/${INSTALLER_VERSION}/server/jar"
-    bashio::log.info "Downloading Fabric server launcher..."
-    if ! curl -fsSL -o "${LAUNCHER_JAR}.tmp" "${url}"; then
-        bashio::log.fatal "Failed to download Fabric server launcher from ${url}"
-        rm -f "${LAUNCHER_JAR}.tmp"
-        return 1
-    fi
-    mv "${LAUNCHER_JAR}.tmp" "${LAUNCHER_JAR}"
-    echo "${desired}" > "${VERSION_MARKER}"
-}
-
-# ---------------------------------------------------------------------------
-# Download a single Modrinth mod (best effort — skip if unavailable)
-# Picks the newest Fabric build matching the resolved Minecraft version.
-# ---------------------------------------------------------------------------
-download_mod() {
-    local slug="$1"
-    local url="${MODRINTH_API}/project/${slug}/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22${MC_VERSION}%22%5D"
-
-    local json
-    json="$(curl -fsSL "${url}" 2>/dev/null || true)"
-    if [[ -z "${json}" || "$(echo "${json}" | jq 'length' 2>/dev/null || echo 0)" == "0" ]]; then
-        bashio::log.warning "No '${slug}' build for Minecraft ${MC_VERSION}; skipping."
-        return 0
-    fi
-
-    # Newest version, preferring its primary file.
-    local picker='sort_by(.date_published) | reverse | .[0].files | (map(select(.primary)) + .)[0]'
-    local file_url file_name
-    file_url="$(echo "${json}" | jq -r "${picker}.url // empty")"
-    file_name="$(echo "${json}" | jq -r "${picker}.filename // empty")"
-
-    if [[ -z "${file_url}" || -z "${file_name}" ]]; then
-        bashio::log.warning "Could not determine a download for '${slug}'; skipping."
-        return 0
-    fi
-
-    if curl -fsSL -o "${MODS_DIR}/${file_name}" "${file_url}"; then
-        echo "${file_name}" >> "${MANAGED_FILE}"
-        bashio::log.info "Installed mod '${slug}' (${file_name})."
-    else
-        bashio::log.warning "Failed to download '${slug}'; skipping."
-        rm -f "${MODS_DIR}/${file_name}"
-    fi
-}
-
-# ---------------------------------------------------------------------------
-# Synchronise the managed mod set with the current options
-# ---------------------------------------------------------------------------
-sync_mods() {
-    mkdir -p "${MODS_DIR}"
-
-    # Remove mods we installed previously (leaves user-dropped jars intact).
-    if [[ -f "${MANAGED_FILE}" ]]; then
-        while IFS= read -r f; do
-            [[ -n "${f}" ]] && rm -f "${MODS_DIR}/${f}"
-        done < "${MANAGED_FILE}"
-    fi
-    : > "${MANAGED_FILE}"
-
-    local -a slugs=()
-    [[ "$(opt mod_lithium)" == "true" ]]     && slugs+=("lithium")
-    [[ "$(opt mod_ferritecore)" == "true" ]] && slugs+=("ferrite-core")
-    [[ "$(opt mod_krypton)" == "true" ]]     && slugs+=("krypton")
-    [[ "$(opt mod_c2me)" == "true" ]]        && slugs+=("c2me-fabric")
-    [[ "$(opt mod_servercore)" == "true" ]]  && slugs+=("servercore")
-    [[ "$(opt geyser_enabled)" == "true" ]]    && slugs+=("geyser")
-    [[ "$(opt floodgate_enabled)" == "true" ]] && slugs+=("floodgate")
-
-    # Via* Protocol Dependency Chain
-    local viaversion=$(opt viaversion_enabled)
-    local viabackwards=$(opt viabackwards_enabled)
-    local viarewind=$(opt viarewind_enabled)
-
-    if [[ "$viaversion" == "true" ]]; then
-        slugs+=("viafabric")
-
-        if [[ "$viabackwards" == "true" ]]; then
-            slugs+=("viabackwards")
-
-            if [[ "$viarewind" == "true" ]]; then
-                slugs+=("viarewind")
-            fi
-        elif [[ "$viarewind" == "true" ]]; then
-            # ViaRewind is enabled, but ViaBackwards is missing
-            bashio::log.fatal "ViaRewind requires ViaBackwards to be enabled."
-        fi
-    elif [[ "$viabackwards" == "true" || "$viarewind" == "true" ]]; then
-        # ViaVersion is missing, but addons are enabled
-        bashio::log.fatal "ViaBackwards and ViaRewind require ViaVersion to be enabled."
-    fi
-
-    while IFS= read -r s; do
-        [[ -n "${s}" ]] && slugs+=("${s}")
-    done < <(jq -r '.extra_mods[]?' "${OPTIONS}")
-
-    # Fabric API is a dependency of effectively every Fabric mod above.
-    [[ ${#slugs[@]} -gt 0 ]] && slugs=("fabric-api" "${slugs[@]}")
-
-    if [[ ${#slugs[@]} -eq 0 ]]; then
-        bashio::log.info "No managed mods enabled."
-        return 0
-    fi
-
-    # De-duplicate while preserving order.
-    local -a uniq=()
-    local s seen
-    for s in "${slugs[@]}"; do
-        seen=false
-        if [[ ${#uniq[@]} -gt 0 ]]; then
-            for u in "${uniq[@]}"; do [[ "${u}" == "${s}" ]] && seen=true && break; done
-        fi
-        [[ "${seen}" == false ]] && uniq+=("${s}")
-    done
-
-    bashio::log.info "Synchronising ${#uniq[@]} mod(s) for Minecraft ${MC_VERSION}..."
-    for s in "${uniq[@]}"; do
-        download_mod "${s}"
-    done
-}
-
-# ---------------------------------------------------------------------------
-# server.properties (regenerated from options on every start)
-# ---------------------------------------------------------------------------
-write_server_properties() {
-    bashio::log.info "Writing server.properties..."
-    {
-        echo "# Generated by the Home Assistant Fabric Server add-on — do not edit manually."
-        echo "motd=$(opt motd)"
-        echo "server-port=25565"
-        echo "query.port=25565"
-        echo "gamemode=$(opt gamemode)"
-        echo "difficulty=$(opt difficulty)"
-        echo "hardcore=$(opt hardcore)"
-        echo "max-players=$(opt max_players)"
-        echo "online-mode=$(opt online_mode)"
-        echo "white-list=$(opt white_list)"
-        echo "enforce-whitelist=$(opt white_list)"
-        echo "pvp=$(opt pvp)"
-        echo "allow-nether=$(opt allow_nether)"
-        echo "allow-flight=$(opt allow_flight)"
-        echo "spawn-protection=$(opt spawn_protection)"
-        echo "view-distance=$(opt view_distance)"
-        echo "simulation-distance=$(opt simulation_distance)"
-        echo "level-name=$(opt level_name)"
-        echo "level-seed=$(opt level_seed)"
-        echo "level-type=$(opt level_type)"
-        echo "enable-command-block=$(opt enable_command_block)"
-        echo "op-permission-level=$(opt op_permission_level)"
-        echo "player-idle-timeout=$(opt player_idle_timeout)"
-        echo "enable-rcon=false"
-        echo "sync-chunk-writes=true"
-    } > "${SERVER_DIR}/server.properties"
-}
-
-# ---------------------------------------------------------------------------
-# Geyser config (Bedrock cross-play). Geyser-Fabric integrates with
-# Floodgate-Fabric automatically when both run on the same server, so no
-# manual key exchange is needed.
-# ---------------------------------------------------------------------------
-write_geyser_config() {
-    [[ "$(opt geyser_enabled)" != "true" ]] && return 0
-
-    local auth="online"
-    [[ "$(opt floodgate_enabled)" == "true" ]] && auth="floodgate"
-
-    local cfg_dir="${SERVER_DIR}/config/Geyser-Fabric"
-    mkdir -p "${cfg_dir}"
-    bashio::log.info "Writing Geyser configuration (auth-type: ${auth})..."
-    cat > "${cfg_dir}/config.yml" <<YAML
-# Generated by the Home Assistant Fabric Server add-on — do not edit manually.
-bedrock:
-  address: 0.0.0.0
-  port: $(opt bedrock_port)
-  clone-remote-port: false
-  motd1: "$(opt geyser_motd)"
-  motd2: "$(opt motd)"
-  server-name: "$(opt geyser_motd)"
-  compression-level: 6
-  enable-proxy-protocol: false
-remote:
-  address: 127.0.0.1
-  port: 25565
-  auth-type: ${auth}
-  allow-password-authentication: true
-  use-proxy-protocol: false
-passthrough-motd: false
-passthrough-player-counts: true
-max-players: $(opt max_players)
-debug-mode: false
-YAML
-}
-
-# ---------------------------------------------------------------------------
-# ops.json — resolve usernames to UUIDs via the Mojang API (best effort)
-# ---------------------------------------------------------------------------
-apply_ops() {
-    local level; level="$(opt op_permission_level)"
-    local entries="[]"
-    local name uuid
-    while IFS= read -r name; do
-        [[ -z "${name}" ]] && continue
-        if ! uuid="$(resolve_uuid "${name}")"; then
-            bashio::log.warning "Could not resolve UUID for op '${name}'; skipping."
-            continue
-        fi
-        entries="$(echo "${entries}" | jq \
-            --arg u "${uuid}" --arg n "${name}" --argjson l "${level}" \
-            '. += [{"uuid":$u,"name":$n,"level":$l,"bypassesPlayerLimit":false}]')"
-        bashio::log.info "Op: ${name} (${uuid})."
-    done < <(jq -r '.ops[]?' "${OPTIONS}")
-
-    echo "${entries}" | jq '.' > "${SERVER_DIR}/ops.json"
-}
-
-# ---------------------------------------------------------------------------
-# whitelist.json — regenerate from the (already merged) whitelist option.
-# Names are resolved to UUIDs via the Mojang API, mirroring apply_ops.
-# Always written so that entries removed from the option/in-game are cleared.
-# ---------------------------------------------------------------------------
-apply_whitelist() {
-    local entries="[]"
-    local name uuid
-    while IFS= read -r name; do
-        [[ -z "${name}" ]] && continue
-        if ! uuid="$(resolve_uuid "${name}")"; then
-            bashio::log.warning "Could not resolve UUID for whitelisted player '${name}'; skipping."
-            continue
-        fi
-        entries="$(echo "${entries}" | jq \
-            --arg u "${uuid}" --arg n "${name}" \
-            '. += [{"uuid":$u,"name":$n}]')"
-        bashio::log.info "Whitelisted: ${name} (${uuid})."
-    done < <(jq -r '.whitelist[]?' "${OPTIONS}")
-
-    echo "${entries}" | jq '.' > "${SERVER_DIR}/whitelist.json"
-}
-
-# ---------------------------------------------------------------------------
-# World location — world lives in SERVER_DIR (share) so it is user-accessible
-# via Samba / File editor without bloating the add-on config folder.
-#
-# Handles migration from pre-1.3.0 where the world was kept in ADDON_CONFIG_DIR:
-# if a real world directory exists there but not yet in SERVER_DIR it is moved.
-# ---------------------------------------------------------------------------
-prepare_world() {
-    local level_name; level_name="$(opt level_name)"
-    [[ -z "${level_name}" ]] && level_name="world"
-
-    local target="${SERVER_DIR}/${level_name}"
-    local old_addon_world="${ADDON_CONFIG_DIR}/${level_name}"
-
-    # Remove any leftover symlink at the target path (pre-1.3.0 artefact).
-    [[ -L "${target}" ]] && rm -f "${target}"
-
-    # Migrate from the old add-on config location if the world isn't in share yet.
-    if [[ -d "${old_addon_world}" && ! -L "${old_addon_world}" ]]; then
-        if [[ ! -e "${target}" ]]; then
-            bashio::log.info "Migrating world '${level_name}' from add-on config to share..."
-            mv "${old_addon_world}" "${target}"
-        else
-            bashio::log.warning \
-                "World exists in both ${old_addon_world} and ${target}; using share copy."
-        fi
-    fi
-
-    mkdir -p "${target}"
-    bashio::log.info "World '${level_name}' stored in share."
-}
-
-# ---------------------------------------------------------------------------
-# Two-way config sync (runtime ⇆ options)
-#
-# Players change the server at runtime with commands such as /op, /deop and
-# /whitelist, which the server records in ops.json / whitelist.json. Because
-# we regenerate those files from the options on every start, those changes
-# would otherwise be lost. sync_runtime_config performs a three-way merge so
-# that additions and removals made *either* in-game *or* in the Home Assistant
-# UI are preserved, writes the merged result back to the options via the
-# Supervisor API, and updates the local options file so the rest of this start
-# regenerates from the merged set.
-# ---------------------------------------------------------------------------
-
-# Three-way set merge of a list option against the live server file.
-#  $1  option key in options.json (a list of strings)
-#  $2  baseline file recording the previously synced set
-#  stdin: the live names, one per line
-# Echoes the merged set as a JSON array and refreshes the baseline.
-merge_list() {
-    local key="$1" baseline="$2"
-    local live opt base removed union merged
-
-    live="$(sort -u | sed '/^[[:space:]]*$/d')"
-    opt="$(jq -r --arg k "${key}" '.[$k][]? // empty' "${OPTIONS}" | sort -u | sed '/^[[:space:]]*$/d')"
-    base=""
-    [[ -f "${baseline}" ]] && base="$(sort -u "${baseline}" | sed '/^[[:space:]]*$/d')"
-
-    # An entry counts as removed when it was in the baseline but is now gone
-    # from either side (in-game or the options).
-    removed="$( {
-        comm -23 <(printf '%s\n' "${base}") <(printf '%s\n' "${live}")
-        comm -23 <(printf '%s\n' "${base}") <(printf '%s\n' "${opt}")
-    } | sort -u | sed '/^[[:space:]]*$/d' )"
-
-    # result = (live ∪ options) − removed
-    union="$(printf '%s\n%s\n' "${live}" "${opt}" | sort -u | sed '/^[[:space:]]*$/d')"
-    merged="$(comm -23 <(printf '%s\n' "${union}") <(printf '%s\n' "${removed}"))"
-
-    printf '%s\n' "${merged}" | sed '/^[[:space:]]*$/d' > "${baseline}"
-    printf '%s\n' "${merged}" | sed '/^[[:space:]]*$/d' | jq -R . | jq -s .
-}
-
-# Persist a full options object back to the add-on configuration.
-# POST /addons/self/options replaces the stored options, so the caller passes
-# the complete (merged) options object. No-op without SUPERVISOR_TOKEN.
-supervisor_save_options() {
-    local options_json="$1"
-
-    if [[ -z "${SUPERVISOR_TOKEN:-}" ]]; then
-        bashio::log.warning "SUPERVISOR_TOKEN not set; cannot sync changes to the add-on options."
-        return 0
-    fi
-
-    local payload
-    payload="$(jq -nc --argjson o "${options_json}" '{options: $o}')" || return 0
-
-    if curl -fsSL -X POST \
-        -H "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
-        -H "Content-Type: application/json" \
-        -d "${payload}" \
-        "${SUPERVISOR_API}/addons/self/options" >/dev/null 2>&1; then
-        bashio::log.info "Synced runtime changes back to the add-on options."
-    else
-        bashio::log.warning "Failed to sync options via the Supervisor API."
-    fi
-}
-
-sync_runtime_config() {
-    local updated; updated="$(cat "${OPTIONS}")"
-    local live merged
-
-    # Operators (ops.json ⇆ ops)
-    live=""
-    [[ -f "${SERVER_DIR}/ops.json" ]] && \
-        live="$(jq -r '.[].name? // empty' "${SERVER_DIR}/ops.json" 2>/dev/null || true)"
-    merged="$(printf '%s\n' "${live}" | merge_list ops "${OPS_BASELINE}")"
-    updated="$(printf '%s' "${updated}" | jq --argjson a "${merged}" '.ops = $a')"
-
-    # Whitelist (whitelist.json ⇆ whitelist)
-    live=""
-    [[ -f "${SERVER_DIR}/whitelist.json" ]] && \
-        live="$(jq -r '.[].name? // empty' "${SERVER_DIR}/whitelist.json" 2>/dev/null || true)"
-    merged="$(printf '%s\n' "${live}" | merge_list whitelist "${WHITELIST_BASELINE}")"
-    updated="$(printf '%s' "${updated}" | jq --argjson a "${merged}" '.whitelist = $a')"
-
-    # Only write when the merge actually changed something.
-    if ! printf '%s' "${updated}" | jq -e --slurpfile cur "${OPTIONS}" '. == $cur[0]' >/dev/null 2>&1; then
-        printf '%s\n' "${updated}" > "${OPTIONS}"
-        supervisor_save_options "${updated}"
-    fi
-}
-
-# ---------------------------------------------------------------------------
-# Build the JVM argument list into the global JVM_ARGS array
-# ---------------------------------------------------------------------------
-JVM_ARGS=()
-build_jvm_args() {
-    JVM_ARGS=(
-        "-Xms$(opt min_memory)"
-        "-Xmx$(opt max_memory)"
-        # Aikar's flags — well-tested G1GC tuning for Minecraft servers.
-        -XX:+UseG1GC
-        -XX:+ParallelRefProcEnabled
-        -XX:MaxGCPauseMillis=200
-        -XX:+UnlockExperimentalVMOptions
-        -XX:+DisableExplicitGC
-        -XX:+AlwaysPreTouch
-        -XX:G1NewSizePercent=30
-        -XX:G1MaxNewSizePercent=40
-        -XX:G1HeapRegionSize=8M
-        -XX:G1ReservePercent=20
-        -XX:G1HeapWastePercent=5
-        -XX:G1MixedGCCountTarget=4
-        -XX:InitiatingHeapOccupancyPercent=15
-        -XX:G1MixedGCLiveThresholdPercent=90
-        -XX:G1RSetUpdatingPauseTimePercent=5
-        -XX:SurvivorRatio=32
-        -XX:+PerfDisableSharedMem
-        -XX:MaxTenuringThreshold=1
-        -Dusing.aikars.flags=https://mcflags.emc.gs
-        -Daikars.new.flags=true
-    )
-
-    local extra; extra="$(opt java_args)"
-    if [[ -n "${extra}" ]]; then
-        local -a extra_arr
-        read -ra extra_arr <<< "${extra}"
-        JVM_ARGS+=("${extra_arr[@]}")
-    fi
+cleanup() {
+    [[ -n "${DASH_PID}" ]] && kill "${DASH_PID}" 2>/dev/null || true
+    [[ -n "${MC_PID}" ]]   && kill "${MC_PID}"   2>/dev/null || true
+    wait 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 main() {
+    local server_type
+    server_type="$(opt server_type)"
+    [[ -z "${server_type}" ]] && server_type="fabric"   # backward-compat default
+
     mkdir -p "${SERVER_DIR}" "${ADDON_CONFIG_DIR}" "${DATA_DIR}"
 
-    # Set up symlinks so config files are stored in the add-on config folder
-    # (user-visible) while Minecraft still finds them in its working directory.
-    link_config_files
+    # Keep the FIFO open so the server never reads EOF when no client is writing.
+    [[ -p "${STDIN_PIPE}" ]] || mkfifo "${STDIN_PIPE}"
+    exec 3<>"${STDIN_PIPE}"
 
-    handle_eula
-    resolve_versions
-    download_server_jar
-    sync_mods
-    # Pull any in-game /op and /whitelist changes from the previous session
-    # into the options before we regenerate the server files from them.
-    sync_runtime_config
-    write_server_properties
-    write_geyser_config
-    apply_ops
-    apply_whitelist
-    # World lives in share (SERVER_DIR); migrate from old add-on config location if needed.
-    prepare_world
+    # Common setup (skipped for BDS which has its own property/permissions format)
+    if [[ "${server_type}" != "bds" ]]; then
+        link_config_files
+        handle_eula
+        sync_runtime_config
+        write_server_properties
+        apply_ops
+        apply_whitelist
+        prepare_world
+        build_jvm_args
+    fi
 
-    build_jvm_args
+    # Dispatch to the chosen server type
+    case "${server_type}" in
+        vanilla)     prepare_vanilla ;;
+        paper)       prepare_paper ;;
+        purpur)      prepare_purpur ;;
+        fabric)      prepare_fabric ;;
+        forge)       prepare_forge ;;
+        bds)         prepare_bds ;;
+        eaglercraft) prepare_eaglercraft ;;
+        *)
+            bashio::log.fatal "Unknown server_type '${server_type}'. Valid types: vanilla paper purpur fabric forge bds eaglercraft"
+            exit 1
+            ;;
+    esac
 
-    bashio::log.info "Starting Fabric server..."
-    cd "${SERVER_DIR}"
-    exec "${JAVA_BIN}" "${JVM_ARGS[@]}" -jar "${LAUNCHER_JAR}" nogui
+    # Write status file for the dashboard
+    jq -n \
+        --arg type   "${server_type}" \
+        --arg ver    "${MC_VERSION:-unknown}" \
+        --argjson mp "$(opt max_players 2>/dev/null || echo 20)" \
+        '{"server_type":$type,"mc_version":$ver,"max_players":$mp,"status":"starting"}' \
+        > "${STATUS_FILE}" 2>/dev/null || true
+
+    # Start dashboard (fails non-fatally if Python or aiohttp is missing)
+    export MC_LOG_FILE="${LOG_FILE}"
+    export MC_STDIN_PIPE="${STDIN_PIPE}"
+    export MC_STATUS_FILE="${STATUS_FILE}"
+    if command -v python3 >/dev/null 2>&1 && python3 -c "import aiohttp" 2>/dev/null; then
+        python3 /dashboard/server.py &
+        DASH_PID=$!
+        bashio::log.info "Dashboard started (PID ${DASH_PID})."
+    else
+        bashio::log.warning "Python3/aiohttp not available; dashboard disabled."
+    fi
+
+    trap cleanup EXIT TERM INT
+
+    # Change to the server's working directory
+    [[ -n "${SERVER_WORKDIR:-}" ]] && cd "${SERVER_WORKDIR}"
+
+    bashio::log.info "Starting ${server_type} server (Minecraft ${MC_VERSION:-unknown})..."
+
+    # Run the server; tee mirrors all output to both the log file and container stdout.
+    "${SERVER_LAUNCH[@]}" < "${STDIN_PIPE}" > >(tee -a "${LOG_FILE}") 2>&1 &
+    MC_PID=$!
+
+    wait "${MC_PID}"
+    local exit_code=$?
+
+    cleanup
+    exit "${exit_code}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
