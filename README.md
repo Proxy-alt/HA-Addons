@@ -13,11 +13,11 @@ from the Home Assistant UI.
 
 ## Add-ons in this repository
 
-| Add-on | Description |
-|---|---|
-| [Invidious](invidious/) | Privacy-respecting YouTube frontend with bundled PostgreSQL |
-| [Invidious Companion](invidious-companion/) | Video-stream offloader that reduces YouTube rate-limiting for Invidious |
-| [Fabric Server](fabric-server/) | Minecraft Fabric server with Geyser + Floodgate (Bedrock cross-play) and performance mods |
+| Add-on                                      | Description                                                                                                                                                |
+|---------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Invidious](invidious/)                     | Privacy-respecting YouTube frontend with bundled PostgreSQL                                                                                                |
+| [Invidious Companion](invidious-companion/) | Video-stream offloader that reduces YouTube rate-limiting for Invidious                                                                                    |
+| [Minecraft Server](fabric-server/)          | Minecraft server with Geyser + Floodgate (Bedrock cross-play), supports choosing Bedrock Dedicated Server (BDS), Vanilla, Fabric, Paper, PurPur, and Forge |
 
 ## What these add-ons share
 
