@@ -1,4 +1,6 @@
 # Home Assistant Community Add-ons
+[![Open your Home Assistant instance and show the add app repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FProxy-alt%2FHA-Addons%2F)
+
 
 A collection of self-hosted services packaged as [Home Assistant OS](https://www.home-assistant.io/)
 add-ons — installable directly from the Add-on Store and configurable entirely
