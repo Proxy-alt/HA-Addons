@@ -1,0 +1,15 @@
+{
+  "account_username": "cync-account-email@gmail.com",
+  "account_password": "cync-account-password",
+  "enable_exporter": false,
+  "secret_key": "userprovidedsecretkey1234567890",
+  "mqtt_host": "mqtt.example.lan",
+  "mqtt_port": 8883,
+  "mqtt_user": "cync",
+  "mqtt_password": "mqttpass",
+  "mqtt_topic": "custom_cync",
+  "max_tcp_connections": 16,
+  "tcp_whitelist": ["10.0.1.112", "10.0.1.167"],
+  "cloud_ip": "34.73.130.191",
+  "debug": true
+}

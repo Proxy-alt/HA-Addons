@@ -1,0 +1,15 @@
+{
+  "account_username": "",
+  "account_password": "",
+  "enable_exporter": true,
+  "secret_key": "",
+  "mqtt_host": "core-mosquitto",
+  "mqtt_port": 1883,
+  "mqtt_user": "",
+  "mqtt_password": "",
+  "mqtt_topic": "cync_lan",
+  "max_tcp_connections": 8,
+  "tcp_whitelist": [],
+  "cloud_ip": "34.73.130.191",
+  "debug": false
+}
