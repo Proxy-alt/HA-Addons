@@ -1,0 +1,10 @@
+{
+  "interface": "wlan0",
+  "ssid": "OpenAP",
+  "wpa_passphrase": "",
+  "hw_mode": "g",
+  "channel": 6,
+  "country_code": "US",
+  "ieee80211n": false,
+  "hide_ssid": true
+}

@@ -1,0 +1,10 @@
+{
+  "interface": "wlan0",
+  "ssid": "TestAP",
+  "wpa_passphrase": "short",
+  "hw_mode": "g",
+  "channel": 6,
+  "country_code": "US",
+  "ieee80211n": true,
+  "hide_ssid": false
+}

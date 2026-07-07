@@ -1,0 +1,54 @@
+name: Hostapd
+version: "1.0.0"
+slug: hostapd
+description: >-
+  Turn a Wi-Fi network interface into a wireless access point using hostapd.
+  Pair with a DHCP/DNS add-on (e.g. the official Dnsmasq add-on) to hand out
+  leases and DNS to connected clients.
+url: https://w1.fi/hostapd/
+arch:
+  - amd64
+  - aarch64
+startup: services
+boot: auto
+init: false
+# hostapd binds a physical radio interface (e.g. wlan0) directly — wireless
+# NICs cannot be handed to an isolated container network namespace the way a
+# virtual veth pair can, so the add-on needs the host's network namespace.
+host_network: true
+# NET_ADMIN configures the interface (bring it up, assign channel/mode via
+# nl80211); NET_RAW is required by hostapd's driver backend to send/receive
+# raw 802.11 management frames.
+privileged:
+  - NET_ADMIN
+  - NET_RAW
+# rfkill lets the add-on unblock a soft-blocked Wi-Fi radio before starting.
+devices:
+  - /dev/rfkill
+# apparmor.txt scopes NET_ADMIN/NET_RAW plus netlink/raw-packet socket access
+# to the hostapd binary specifically, so the default confinement no longer
+# needs to be disabled outright.
+apparmor: true
+map:
+  - type: data
+    read_only: false
+options:
+  interface: "wlan0"
+  ssid: "HomeAssistant-AP"
+  wpa_passphrase: ""
+  hw_mode: "g"
+  channel: 6
+  country_code: "US"
+  ieee80211n: true
+  hide_ssid: false
+schema:
+  interface: str
+  ssid: str
+  wpa_passphrase: password
+  hw_mode: "list(a|b|g)"
+  channel: "int(1,196)"
+  country_code: str
+  ieee80211n: bool
+  hide_ssid: bool
+panel_icon: mdi:wifi-star
+panel_title: Hostapd

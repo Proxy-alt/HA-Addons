@@ -120,6 +120,22 @@ fabric_mock_curl() {
 }
 
 # ---------------------------------------------------------------------------
+# Source hostapd run.sh with mocked environment.
+# main() is guarded by a BASH_SOURCE check so only functions and globals load.
+# ---------------------------------------------------------------------------
+load_hostapd_run() {
+    local fixture="${1:-${FIXTURES_DIR}/options_hostapd_defaults.json}"
+
+    export BASHIO_LIB="${MOCK_BASHIO}"
+
+    # shellcheck source=/dev/null
+    source "${REPO_DIR}/hostapd/rootfs/run.sh"
+
+    OPTIONS="${fixture}"
+    CONFIG_FILE="${TEST_TMPDIR}/hostapd.conf"
+}
+
+# ---------------------------------------------------------------------------
 # YAML validation via python3 + PyYAML
 # ---------------------------------------------------------------------------
 assert_valid_yaml() {

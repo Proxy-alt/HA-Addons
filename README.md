@@ -20,6 +20,7 @@ from the Home Assistant UI.
 | [Invidious](invidious/)                     | Privacy-respecting YouTube frontend with bundled PostgreSQL                                                                                                |
 | [Invidious Companion](invidious-companion/) | Video-stream offloader that reduces YouTube rate-limiting for Invidious                                                                                    |
 | [Minecraft Server](fabric-server/)          | Minecraft server with Geyser + Floodgate (Bedrock cross-play), supports choosing Bedrock Dedicated Server (BDS), Vanilla, Fabric, Paper, PurPur, and Forge |
+| [Hostapd](hostapd/)                         | Turns a Wi-Fi interface into a wireless access point                                                                                                        |
 
 ## What these add-ons share
 

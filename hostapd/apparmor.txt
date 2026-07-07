@@ -1,0 +1,54 @@
+#include <tunables/global>
+
+profile hostapd flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Capabilities
+  file,
+  signal (send) set=(kill,term,int,hup,cont),
+
+  # S6-Overlay
+  /init ix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /usr/sbin/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/{,**} rwk,
+  /dev/tty rw,
+
+  # Bashio
+  /usr/lib/bashio/** ix,
+  /tmp/** rwk,
+
+  # Access to options.json and the generated hostapd.conf
+  /data/** rw,
+
+  # rfkill unblock (run.sh) runs in this profile, before hostapd is exec'd
+  /dev/rfkill rw,
+
+  # Hand off to a dedicated, narrower profile once hostapd itself takes over
+  /usr/sbin/hostapd cx -> hostapd,
+
+  profile hostapd flags=(attach_disconnected,mediate_deleted) {
+    #include <abstractions/base>
+
+    # Bring the interface up and configure it via nl80211/netlink
+    capability net_admin,
+    # Send/receive raw 802.11 management frames and EAPOL
+    capability net_raw,
+    network netlink raw,
+    network packet raw,
+
+    /usr/sbin/hostapd mr,
+    /data/hostapd.conf r,
+    /dev/rfkill rw,
+
+    # hostapd's control interface socket
+    /run/hostapd/** rw,
+  }
+}

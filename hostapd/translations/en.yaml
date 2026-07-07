@@ -1,0 +1,42 @@
+configuration:
+  interface:
+    name: Wi-Fi Interface
+    description: >-
+      Name of the host's wireless network interface to turn into an access
+      point, e.g. "wlan0". The adapter must support AP mode — run "iw list"
+      on the host and check for "AP" under supported interface modes. It
+      must not be managed by NetworkManager/wpa_supplicant, or they will
+      fight hostapd for control of the interface.
+  ssid:
+    name: Network Name (SSID)
+    description: The Wi-Fi network name broadcast to nearby devices.
+  wpa_passphrase:
+    name: Wi-Fi Password
+    description: >-
+      WPA2 passphrase (8-63 characters). Leave empty to run an open network
+      with no password — not recommended.
+  hw_mode:
+    name: Band
+    description: >-
+      Radio band: "b" or "g" for 2.4 GHz, "a" for 5 GHz. Must match what the
+      wireless adapter supports.
+  channel:
+    name: Channel
+    description: >-
+      Wi-Fi channel number. The valid range depends on hw_mode and
+      country_code — an invalid combination will fail to start.
+  country_code:
+    name: Country Code
+    description: >-
+      Two-letter ISO 3166-1 country code (e.g. "US", "GB") used to select
+      the legal set of channels and transmit power for the radio.
+  ieee80211n:
+    name: Enable 802.11n
+    description: >-
+      Enable 802.11n (Wi-Fi 4) mode for higher throughput, if the adapter
+      supports it.
+  hide_ssid:
+    name: Hide SSID
+    description: >-
+      Do not broadcast the network name. Devices must know the SSID in
+      advance to connect. Does not meaningfully improve security.
