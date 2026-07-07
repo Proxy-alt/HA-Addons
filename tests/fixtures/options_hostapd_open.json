@@ -1,10 +1,39 @@
 {
   "interface": "wlan0",
-  "ssid": "OpenAP",
-  "wpa_passphrase": "",
   "hw_mode": "g",
   "channel": 6,
   "country_code": "US",
+  "ieee80211d": true,
+  "ieee80211h": false,
   "ieee80211n": false,
-  "hide_ssid": true
+  "ieee80211ac": false,
+  "ieee80211ax": false,
+  "ht_capab": "",
+  "vht_capab": "",
+  "wmm_enabled": true,
+  "beacon_int": 100,
+  "dtim_period": 2,
+  "max_num_sta": 0,
+  "rts_threshold": -1,
+  "fragm_threshold": -1,
+  "radius": {
+    "enabled": false,
+    "nas_identifier": "hostapd",
+    "own_ip_addr": "",
+    "auth_server_addr": "",
+    "auth_server_port": 1812,
+    "auth_server_secret": "",
+    "acct_enabled": false,
+    "acct_server_addr": "",
+    "acct_server_port": 1813,
+    "acct_server_secret": ""
+  },
+  "access_points": [
+    {
+      "ssid": "OpenAP",
+      "hide_ssid": true,
+      "security_mode": "open",
+      "wpa_passphrase": ""
+    }
+  ]
 }

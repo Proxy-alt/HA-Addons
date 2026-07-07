@@ -17,23 +17,23 @@
   "rts_threshold": -1,
   "fragm_threshold": -1,
   "radius": {
-    "enabled": false,
+    "enabled": true,
     "nas_identifier": "hostapd",
-    "own_ip_addr": "",
-    "auth_server_addr": "",
+    "own_ip_addr": "192.168.1.10",
+    "auth_server_addr": "192.168.1.20",
     "auth_server_port": 1812,
-    "auth_server_secret": "",
-    "acct_enabled": false,
-    "acct_server_addr": "",
+    "auth_server_secret": "radiussecret1",
+    "acct_enabled": true,
+    "acct_server_addr": "192.168.1.20",
     "acct_server_port": 1813,
-    "acct_server_secret": ""
+    "acct_server_secret": "acctsecret1"
   },
   "access_points": [
     {
-      "ssid": "TestAP",
+      "ssid": "EnterpriseAP",
       "hide_ssid": false,
-      "security_mode": "wpa2_personal",
-      "wpa_passphrase": "supersecret1"
+      "security_mode": "wpa3_enterprise",
+      "wpa_passphrase": ""
     }
   ]
 }

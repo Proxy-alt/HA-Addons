@@ -1,10 +1,14 @@
 name: Hostapd
-version: "1.0.0"
+version: "2.0.0"
 slug: hostapd
 description: >-
-  Turn a Wi-Fi network interface into a wireless access point using hostapd.
-  Pair with a DHCP/DNS add-on (e.g. the official Dnsmasq add-on) to hand out
-  leases and DNS to connected clients.
+  Turn a Wi-Fi network interface into one or more wireless access points
+  using hostapd — Open, WPA2-Personal, WPA3-Personal (SAE), WPA3 Enhanced
+  Open (OWE), and WPA2/WPA3-Enterprise (802.1X via RADIUS) are all
+  supported, each as its own SSID on the same radio. Pair with a DHCP/DNS
+  add-on (e.g. the official Dnsmasq add-on) to hand out leases and DNS to
+  connected clients, and with a RADIUS server (e.g. this repository's
+  FreeRADIUS add-on) for Enterprise SSIDs.
 url: https://w1.fi/hostapd/
 arch:
   - amd64
@@ -33,22 +37,77 @@ map:
   - type: data
     read_only: false
 options:
+  # Radio
   interface: "wlan0"
-  ssid: "HomeAssistant-AP"
-  wpa_passphrase: ""
   hw_mode: "g"
   channel: 6
   country_code: "US"
+  ieee80211d: true
+  ieee80211h: false
   ieee80211n: true
-  hide_ssid: false
+  ieee80211ac: false
+  ieee80211ax: false
+  ht_capab: ""
+  vht_capab: ""
+  wmm_enabled: true
+  beacon_int: 100
+  dtim_period: 2
+  max_num_sta: 0
+  rts_threshold: -1
+  fragm_threshold: -1
+  # RADIUS (only required if an access point below uses an Enterprise mode)
+  radius:
+    enabled: false
+    nas_identifier: "hostapd"
+    own_ip_addr: ""
+    auth_server_addr: ""
+    auth_server_port: 1812
+    auth_server_secret: ""
+    acct_enabled: false
+    acct_server_addr: ""
+    acct_server_port: 1813
+    acct_server_secret: ""
+  # Access points — one per SSID, all broadcast from the same radio via
+  # hostapd's multi-BSS support.
+  access_points:
+    - ssid: "HomeAssistant-AP"
+      hide_ssid: false
+      security_mode: "wpa2_personal"
+      wpa_passphrase: ""
 schema:
+  # Radio
   interface: str
-  ssid: str
-  wpa_passphrase: password
   hw_mode: "list(a|b|g)"
-  channel: "int(1,196)"
+  channel: "int(0,196)"
   country_code: str
+  ieee80211d: bool
+  ieee80211h: bool
   ieee80211n: bool
-  hide_ssid: bool
+  ieee80211ac: bool
+  ieee80211ax: bool
+  ht_capab: str?
+  vht_capab: str?
+  wmm_enabled: bool
+  beacon_int: "int(15,65535)"
+  dtim_period: "int(1,255)"
+  max_num_sta: "int(0,2007)"
+  rts_threshold: "int(-1,2347)"
+  fragm_threshold: "int(-1,2346)"
+  radius:
+    enabled: bool
+    nas_identifier: str?
+    own_ip_addr: str?
+    auth_server_addr: str?
+    auth_server_port: "int(1,65535)"
+    auth_server_secret: password?
+    acct_enabled: bool
+    acct_server_addr: str?
+    acct_server_port: "int(1,65535)"
+    acct_server_secret: password?
+  access_points:
+    - ssid: str
+      hide_ssid: bool
+      security_mode: "list(open|owe|wpa2_personal|wpa3_personal|wpa2_wpa3_personal|wpa2_enterprise|wpa3_enterprise)"
+      wpa_passphrase: password?
 panel_icon: mdi:wifi-star
 panel_title: Hostapd

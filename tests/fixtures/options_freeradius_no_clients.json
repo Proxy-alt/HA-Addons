@@ -1,0 +1,13 @@
+{
+  "clients": [],
+  "users": [
+    {
+      "username": "alice",
+      "password": "hunter2"
+    }
+  ],
+  "eap": {
+    "default_eap_type": "peap",
+    "tls_verify_client_cert": false
+  }
+}

@@ -156,6 +156,30 @@ load_cync_lan_run() {
 }
 
 # ---------------------------------------------------------------------------
+# Source freeradius run.sh with mocked environment.
+# main() is guarded by a BASH_SOURCE check so only functions and globals load.
+# Config paths are pointed at a scratch directory so generated clients.conf/
+# authorize/eap files don't touch the real filesystem.
+# ---------------------------------------------------------------------------
+load_freeradius_run() {
+    local fixture="${1:-${FIXTURES_DIR}/options_freeradius_defaults.json}"
+
+    export BASHIO_LIB="${MOCK_BASHIO}"
+
+    # shellcheck source=/dev/null
+    source "${REPO_DIR}/freeradius/rootfs/run.sh"
+
+    OPTIONS="${fixture}"
+    CONF_DIR="${TEST_TMPDIR}/freeradius"
+    CLIENTS_CONF="${CONF_DIR}/clients.conf"
+    USERS_FILE="${CONF_DIR}/mods-config/files/authorize"
+    EAP_FILE="${CONF_DIR}/mods-available/eap"
+    CERTS_DIR="${TEST_TMPDIR}/certs"
+
+    mkdir -p "${CONF_DIR}/mods-config/files" "${CONF_DIR}/mods-available" "${CERTS_DIR}"
+}
+
+# ---------------------------------------------------------------------------
 # YAML validation via python3 + PyYAML
 # ---------------------------------------------------------------------------
 assert_valid_yaml() {
@@ -191,6 +215,26 @@ assert_file_not_contains() {
     if grep -qF "${pattern}" "${file}"; then
         echo "ASSERTION FAILED: file should NOT contain: ${pattern}"
         echo "--- config file ---"
+        cat "${file}"
+        return 1
+    fi
+}
+
+assert_file_contains_path() {
+    local file="$1" pattern="$2"
+    if ! grep -qF "${pattern}" "${file}"; then
+        echo "ASSERTION FAILED: ${file} does not contain: ${pattern}"
+        echo "--- file ---"
+        cat "${file}"
+        return 1
+    fi
+}
+
+assert_file_not_contains_path() {
+    local file="$1" pattern="$2"
+    if grep -qF "${pattern}" "${file}"; then
+        echo "ASSERTION FAILED: ${file} should NOT contain: ${pattern}"
+        echo "--- file ---"
         cat "${file}"
         return 1
     fi

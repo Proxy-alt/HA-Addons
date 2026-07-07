@@ -1,0 +1,19 @@
+configuration:
+  clients:
+    name: RADIUS Clients
+    description: >-
+      NAS devices allowed to send RADIUS requests to this server — e.g. the
+      Hostapd add-on. "ipaddr" must match the NAS's own_ip_addr/source
+      address, and "secret" must match the NAS's configured shared secret
+      exactly.
+  users:
+    name: Local Users
+    description: >-
+      Username/password pairs for PEAP/TTLS logins (password-based EAP
+      methods tunneled over TLS). Not required if every client only uses
+      EAP-TLS, since the client certificate is the credential there.
+  eap:
+    name: EAP Settings
+    description: >-
+      Default EAP method offered to clients, and whether to require a
+      client certificate (mandatory in practice for EAP-TLS).

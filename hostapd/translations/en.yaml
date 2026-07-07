@@ -7,14 +7,6 @@ configuration:
       on the host and check for "AP" under supported interface modes. It
       must not be managed by NetworkManager/wpa_supplicant, or they will
       fight hostapd for control of the interface.
-  ssid:
-    name: Network Name (SSID)
-    description: The Wi-Fi network name broadcast to nearby devices.
-  wpa_passphrase:
-    name: Wi-Fi Password
-    description: >-
-      WPA2 passphrase (8-63 characters). Leave empty to run an open network
-      with no password — not recommended.
   hw_mode:
     name: Band
     description: >-
@@ -23,20 +15,84 @@ configuration:
   channel:
     name: Channel
     description: >-
-      Wi-Fi channel number. The valid range depends on hw_mode and
-      country_code — an invalid combination will fail to start.
+      Wi-Fi channel number, or 0 to let hostapd pick automatically (ACS).
+      The valid range depends on hw_mode and country_code — an invalid
+      combination will fail to start.
   country_code:
     name: Country Code
     description: >-
       Two-letter ISO 3166-1 country code (e.g. "US", "GB") used to select
       the legal set of channels and transmit power for the radio.
+  ieee80211d:
+    name: Enable Country/Regulatory Info (802.11d)
+    description: >-
+      Advertise the configured country code to clients. Leave enabled
+      unless you have a specific reason not to.
+  ieee80211h:
+    name: Enable DFS/TPC (802.11h)
+    description: >-
+      Required on some 5 GHz channels that share spectrum with radar
+      systems. Only relevant when hw_mode is "a".
   ieee80211n:
-    name: Enable 802.11n
+    name: Enable 802.11n (Wi-Fi 4)
     description: >-
-      Enable 802.11n (Wi-Fi 4) mode for higher throughput, if the adapter
-      supports it.
-  hide_ssid:
-    name: Hide SSID
+      Enable 802.11n mode for higher throughput, if the adapter supports it.
+  ieee80211ac:
+    name: Enable 802.11ac (Wi-Fi 5)
     description: >-
-      Do not broadcast the network name. Devices must know the SSID in
-      advance to connect. Does not meaningfully improve security.
+      Enable 802.11ac (VHT) mode, 5 GHz only. Requires an adapter that
+      supports it; you may also need to set Advanced VHT Capabilities.
+  ieee80211ax:
+    name: Enable 802.11ax (Wi-Fi 6)
+    description: >-
+      Enable 802.11ax (HE) mode. Requires an adapter that supports it.
+  ht_capab:
+    name: Advanced HT Capabilities
+    description: >-
+      Raw hostapd "ht_capab" string (802.11n). Leave empty to use driver
+      defaults. Advanced/optional — see the hostapd.conf reference.
+  vht_capab:
+    name: Advanced VHT Capabilities
+    description: >-
+      Raw hostapd "vht_capab" string (802.11ac). Leave empty to use driver
+      defaults. Advanced/optional — see the hostapd.conf reference.
+  wmm_enabled:
+    name: Enable WMM (QoS)
+    description: >-
+      Wi-Fi Multimedia QoS extensions. Required for 802.11n/ac/ax — leave
+      enabled unless you know you need it off.
+  beacon_int:
+    name: Beacon Interval
+    description: Beacon frame interval in TU (1.024 ms units). 100 is standard.
+  dtim_period:
+    name: DTIM Period
+    description: >-
+      Number of beacons between DTIM (delivery traffic indication) frames.
+      Higher values save client battery at the cost of latency for buffered
+      multicast/broadcast traffic.
+  max_num_sta:
+    name: Max Connected Stations
+    description: Maximum number of associated clients across all access points below. 0 = no limit.
+  rts_threshold:
+    name: RTS Threshold
+    description: >-
+      Frame size (bytes) above which RTS/CTS handshaking is used. -1
+      disables it (recommended unless you have a specific interference
+      problem).
+  fragm_threshold:
+    name: Fragmentation Threshold
+    description: >-
+      Frame size (bytes) above which frames are fragmented. -1 disables it
+      (recommended unless you have a specific interference problem).
+  radius:
+    name: RADIUS Server
+    description: >-
+      External RADIUS server used for any access point below set to a
+      WPA2/WPA3-Enterprise security mode. Not needed for Open/OWE/Personal
+      SSIDs. Pair with this repository's FreeRADIUS add-on, or any other
+      RADIUS server.
+  access_points:
+    name: Access Points
+    description: >-
+      One entry per SSID. All entries broadcast from the same radio at
+      once via hostapd's multi-BSS support.

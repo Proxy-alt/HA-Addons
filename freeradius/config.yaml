@@ -1,0 +1,51 @@
+name: FreeRADIUS
+version: "1.0.0"
+slug: freeradius
+description: >-
+  RADIUS server (RFC 2865/2866) for WPA2/WPA3-Enterprise Wi-Fi and other
+  802.1X authentication. Pairs with this repository's Hostapd add-on's
+  Enterprise access points — configure matching NAS clients and users here.
+url: https://freeradius.org/
+arch:
+  - amd64
+  - aarch64
+startup: services
+boot: auto
+init: false
+map:
+  - type: data
+    read_only: false
+ports:
+  1812/udp: 1812
+  1813/udp: 1813
+ports_description:
+  1812/udp: RADIUS Authentication
+  1813/udp: RADIUS Accounting
+options:
+  # NAS clients allowed to send requests to this server (e.g. the Hostapd
+  # add-on's own_ip_addr, with a matching auth_server_secret).
+  clients:
+    - name: "hostapd"
+      ipaddr: ""
+      secret: ""
+  # Local users, authenticated against Cleartext-Password. Used for
+  # PEAP/TTLS (password-based EAP methods tunneled over TLS).
+  users:
+    - username: ""
+      password: ""
+  eap:
+    default_eap_type: "peap"
+    tls_verify_client_cert: false
+schema:
+  clients:
+    - name: str
+      ipaddr: str
+      secret: password
+  users:
+    - username: str
+      password: password
+  eap:
+    default_eap_type: "list(peap|ttls|tls)"
+    tls_verify_client_cert: bool
+panel_icon: mdi:shield-key
+panel_title: FreeRADIUS

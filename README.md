@@ -20,7 +20,8 @@ from the Home Assistant UI.
 | [Invidious](invidious/)                     | Privacy-respecting YouTube frontend with bundled PostgreSQL                                                                                                |
 | [Invidious Companion](invidious-companion/) | Video-stream offloader that reduces YouTube rate-limiting for Invidious                                                                                    |
 | [Minecraft Server](fabric-server/)          | Minecraft server with Geyser + Floodgate (Bedrock cross-play), supports choosing Bedrock Dedicated Server (BDS), Vanilla, Fabric, Paper, PurPur, and Forge |
-| [Hostapd](hostapd/)                         | Turns a Wi-Fi interface into a wireless access point                                                                                                        |
+| [Hostapd](hostapd/)                         | Turns a Wi-Fi interface into one or more wireless access points (Open, WPA2/WPA3-Personal, WPA3 OWE, WPA2/WPA3-Enterprise) |
+| [FreeRADIUS](freeradius/)                   | RADIUS server for WPA2/WPA3-Enterprise Wi-Fi and other 802.1X authentication, pairs with Hostapd                                                            |
 | [Cync LAN](cync-lan/)                       | Local, cloud-free MQTT bridge for GE Cync / C by GE Wi-Fi smart lighting                                                                                    |
 
 ## What these add-ons share

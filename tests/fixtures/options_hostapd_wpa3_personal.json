@@ -30,9 +30,9 @@
   },
   "access_points": [
     {
-      "ssid": "TestAP",
+      "ssid": "Wpa3PersonalAP",
       "hide_ssid": false,
-      "security_mode": "wpa2_personal",
+      "security_mode": "wpa3_personal",
       "wpa_passphrase": "supersecret1"
     }
   ]

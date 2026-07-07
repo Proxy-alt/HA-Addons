@@ -1,0 +1,14 @@
+{
+  "clients": [
+    {
+      "name": "hostapd",
+      "ipaddr": "192.168.1.10",
+      "secret": "radiussecret1"
+    }
+  ],
+  "users": [],
+  "eap": {
+    "default_eap_type": "tls",
+    "tls_verify_client_cert": true
+  }
+}

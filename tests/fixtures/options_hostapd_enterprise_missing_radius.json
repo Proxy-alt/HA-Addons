@@ -30,10 +30,10 @@
   },
   "access_points": [
     {
-      "ssid": "TestAP",
+      "ssid": "EnterpriseAP",
       "hide_ssid": false,
-      "security_mode": "wpa2_personal",
-      "wpa_passphrase": "supersecret1"
+      "security_mode": "wpa2_enterprise",
+      "wpa_passphrase": ""
     }
   ]
 }
