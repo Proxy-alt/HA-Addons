@@ -21,6 +21,7 @@ from the Home Assistant UI.
 | [Invidious Companion](invidious-companion/) | Video-stream offloader that reduces YouTube rate-limiting for Invidious                                                                                    |
 | [Minecraft Server](fabric-server/)          | Minecraft server with Geyser + Floodgate (Bedrock cross-play), supports choosing Bedrock Dedicated Server (BDS), Vanilla, Fabric, Paper, PurPur, and Forge |
 | [Hostapd](hostapd/)                         | Turns a Wi-Fi interface into a wireless access point                                                                                                        |
+| [Cync LAN](cync-lan/)                       | Local, cloud-free MQTT bridge for GE Cync / C by GE Wi-Fi smart lighting                                                                                    |
 
 ## What these add-ons share
 

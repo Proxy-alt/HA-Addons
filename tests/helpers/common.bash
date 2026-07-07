@@ -136,6 +136,26 @@ load_hostapd_run() {
 }
 
 # ---------------------------------------------------------------------------
+# Source cync-lan run.sh with mocked environment.
+# main() is guarded by a BASH_SOURCE check so only functions and globals load.
+# PATH is prefixed with the mock bin dir so `openssl rand -hex 32` returns a
+# fixed value in tests; real openssl (e.g. `req`) still falls through.
+# ---------------------------------------------------------------------------
+load_cync_lan_run() {
+    local fixture="${1:-${FIXTURES_DIR}/options_cync_lan_defaults.json}"
+
+    export BASHIO_LIB="${MOCK_BASHIO}"
+    export PATH="${MOCK_BIN_DIR}:${PATH}"
+
+    # shellcheck source=/dev/null
+    source "${REPO_DIR}/cync-lan/rootfs/run.sh"
+
+    OPTIONS="${fixture}"
+    CONFIG_DIR="${TEST_TMPDIR}/config"
+    CERTS_DIR="${TEST_TMPDIR}/certs"
+}
+
+# ---------------------------------------------------------------------------
 # YAML validation via python3 + PyYAML
 # ---------------------------------------------------------------------------
 assert_valid_yaml() {
